@@ -26,7 +26,7 @@ RUN wget -q -O /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py && cd /tmp &
 RUN python3 -m pip install unidiff
 
 # Install Maven
-RUN cd /opt && wget -q https://mirrors.estointernet.in/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz && \
+RUN cd /opt && wget -q https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz && \
     tar -xvf apache-maven-3.6.3-bin.tar.gz
 ENV M2_HOME '/opt/apache-maven-3.6.3'
 ENV PATH "$M2_HOME/bin:${PATH}"
@@ -53,6 +53,7 @@ RUN \
 
 RUN cd /opt && git clone https://github.com/rjust/defects4j.git
 WORKDIR /opt/defects4j
+RUN git checkout tags/v2.1.0
 RUN cpanm --installdeps .
 RUN ./init.sh
 ENV PATH="/opt/defects4j/framework/bin:${PATH}"

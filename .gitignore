@@ -6,7 +6,6 @@
 app/__pycache__/
 logs
 output
-extern
 venv
 *.DS_Store
 .devcontainer
