@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-from app import values, spectra, emitter
+from app import values, spectra, emitter, llm_integration
 import javalang
 
 def extract_oracle(spectra):
@@ -10,8 +10,8 @@ def extract_oracle(spectra):
     # TODO: More robust file handling (especially when no file was found)
     print(values.file_bug_report)
     with open(values.file_bug_report, 'r') as file:
-        content = file.read()
-        print(content)
+        bug_report = file.read()
+        print(bug_report)
 
     # Get sus location
     location = spectra.get_top_suspicious_location()
@@ -19,9 +19,11 @@ def extract_oracle(spectra):
     method = extract_method_from_definition(location)
     print(f"Suspicious method:\n{method}")
 
+    llm_integration.generate_oracle(method, bug_report)
+
     return None
 
-# Spectra gives the most suspicious line of code, but we need the whole method. This function provides it.
+# Spectra gives us the most suspicious line of code, but we need the whole method. This function provides it.
 def extract_method_from_definition(location):
     emitter.debug(f"Target class: {location.class_name}")
     emitter.debug(f"Suspicious line: {location.line_number}")
