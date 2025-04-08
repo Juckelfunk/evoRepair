@@ -104,3 +104,12 @@ class Spectra:
             tmp.append("\n")
             tmp.append(f"<{loc.class_name}{{#{loc.line_number},{value}")
         return "".join(tmp)
+
+    # Returns the top suspicious location, which will be the candidate to inject our test oracle into
+    def get_top_suspicious_location(self, ignored_tests=None):
+        susp_values = self.__get_susp_values(ignored_tests=ignored_tests)
+        if not susp_values:
+            return None
+        # Find the location with the maximum suspiciousness value
+        top_location = max(susp_values, key=susp_values.get)
+        return top_location

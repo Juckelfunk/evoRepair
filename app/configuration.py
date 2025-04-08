@@ -133,6 +133,17 @@ class Configurations:
         if not os.path.isdir(values.dir_src):
             values.dir_src = values.dir_exp + "/" + values.dir_src
 
+        # Construct bug report path
+        work_dir = self.__runtime_config_values["work-dir"]
+        bug_report_path = Path(work_dir) / "bug-report.txt"
+        if bug_report_path.is_file():
+            values.file_bug_report = str(bug_report_path.resolve())
+            emitter.debug(f"Found bug report at: {values.file_bug_report}")
+        else:
+            values.file_bug_report = ""  # Set to empty if not found
+            emitter.debug(f"Bug report file not found at expected location: {bug_report_path}")
+            # TODO: If LLM oracle extraction is enabled, but no bug report is found, the program should exit
+
         values.cmd_build = self.__runtime_config_values["build-cmd"]
         values.cmd_clean = self.__runtime_config_values["clean-cmd"]
         values.cmd_pre_build = self.__runtime_config_values["pre-build-cmd"]

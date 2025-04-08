@@ -79,3 +79,7 @@ dir_info = dict()
 time_system_start = 0
 time_system_end = 0
 total_timeout = 0
+
+# ------------------- LLM Oracle Extraction --------------------
+use_llm_extraction = True
+file_bug_report = ""

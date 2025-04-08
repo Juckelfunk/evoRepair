@@ -8,7 +8,8 @@ import traceback
 import signal
 import multiprocessing as mp
 import app.utilities
-from app import emitter, logger, values, repair, builder, tester, validator, utilities, oracle_extractor
+from app import emitter, logger, values, repair, builder, tester, validator, utilities, oracle_extractor, \
+    llm_oracle_extractor
 from app.configuration import  Configurations
 from app.patch import IndexedPatch
 from app.test_suite import IndexedTest
@@ -22,6 +23,7 @@ import random
 import json
 from app.test_suite import USER_TEST_GENERATION
 from app.spectra import Spectra
+from app.values import use_llm_extraction
 
 
 class Interval:
@@ -146,9 +148,9 @@ def run(arg_list):
 
     bootstrap(arg_list)
 
-    oracle_extractor.extract_oracle_locations()
-    oracle_locations_file = Path(values.dir_output, "oracleLocations.json")
-    assert os.path.isfile(oracle_locations_file), str(oracle_locations_file)
+    #
+    # Former oracle extraction location
+    #
 
     i_patch_population_size = values.num_perfect_patches
 
@@ -304,8 +306,29 @@ def run(arg_list):
     timer.pause_phase(phase)
     emitter.normal(f"\n\tUsed {timer.last_interval_duration(phase, unit='m'):.2f} minutes")
 
+    ##########################################
+    # Oracle Extraction
+    ##########################################
+
+    if use_llm_extraction:
+        emitter.sub_sub_title("Extracting Oracles with LLM")
+        phase = "LLM Oracle Extraction"
+        timer.start_phase(phase)
+
+        llm_oracle_extractor.extract_oracle(spectra)
+        input()
+
+    # Run oracle location finder
+    oracle_extractor.extract_oracle_locations()
+    oracle_locations_file = Path(values.dir_output, "oracleLocations.json")
+    assert os.path.isfile(oracle_locations_file), str(oracle_locations_file)
+
     INT_MIN = -0x80000000
     INT_MAX = 0x7fffffff
+
+    ##########################################
+    # Start of co-evolution
+    ##########################################
 
     emitter.information("\n\tStarting co-evolution")
 
