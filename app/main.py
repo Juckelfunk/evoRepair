@@ -316,7 +316,8 @@ def run(arg_list):
         timer.start_phase(phase)
 
         llm_oracle_extractor.extract_oracle(spectra)
-        input()
+        timer.pause_all()
+        return
 
     # Run oracle location finder
     oracle_extractor.extract_oracle_locations()

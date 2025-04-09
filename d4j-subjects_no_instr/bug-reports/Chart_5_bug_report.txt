@@ -1,0 +1,38 @@
+XYSeries.addOrUpdate() should add if duplicates are allowed 
+
+Copied from this post (by Ted Schwartz) in the forum:
+
+http://www.jfree.org/phpBB2/viewtopic.php?t=24523
+
+I've found a bug in jfreechart-1.0.9 code for org.jfree.data.xy.XYSeries. There was a change some time ago which introduced the notion of allowing duplicate X values in XYSeries data. The method addOrUpdate(Number x, Number y) was never modified to support this, and therefore duplicate data were overwriting existing data. This is the fix I've made, but I don't know how to submit a patch...
+
+$ diff original/jfreechart-1.0.9/source/org/jfree/data/xy/XYSeries.java fixed/org/jfree/data/xy/XYSeries.java
+537c537
+< if (index >= 0) {
+---
+> if (index >= 0 && !allowDuplicateXValues) {
+545a546,559
+> } else if (index >= 0){
+> XYDataItem item = new XYDataItem(x, y);
+> // need to make sure we are adding *after* any duplicates
+> int size = this.data.size();
+> while (index < size
+> && item.compareTo(this.data.get(index)) == 0) {
+> index++;
+> }
+> if (index < this.data.size()) {
+> this.data.add(index, item);
+> }
+> else {
+> this.data.add(item);
+> }
+558,561d571
+< // check if this addition will exceed the maximum item count...
+< if (getItemCount() > this.maximumItemCount) {
+< this.data.remove(0);
+< }
+562a573,576
+> // check if this addition will exceed the maximum item count...
+> if (getItemCount() > this.maximumItemCount) {
+> this.data.remove(0);
+> }
