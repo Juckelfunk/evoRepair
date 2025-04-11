@@ -5,7 +5,7 @@ from pathlib import Path
 import requests
 from app import emitter, values
 from dotenv import load_dotenv
-#from openai import OpenAI, OpenAIError
+from openai import OpenAI, OpenAIError
 from google import genai
 from google.api_core import exceptions as google_exceptions
 
@@ -41,8 +41,10 @@ def call_llm(prompt):
     # Make API call
     if provider == "ollama":
         result = _call_ollama(prompt, selected_llm_config)
-    if provider == "gemini":
+    elif provider == "gemini":
         result = _call_gemini(prompt, selected_llm_config)
+    elif provider == "openai":
+        result = _call_openai(prompt, selected_llm_config)
     else:
         emitter.error(f"Unsupported LLM provider: '{provider}' in configuration '{llm_key}'.")
         return None
@@ -185,4 +187,39 @@ def _call_gemini(prompt, config):
         return None
     except Exception as e:
         emitter.error(f"An unexpected error occurred calling Google Gemini: {e}")
+        return None
+
+def _call_openai(prompt, config):
+    if not OpenAI:
+        emitter.error("OpenAI library is not installed. Please install it: pip install openai")
+        return None
+
+    api_key = get_api_key(config)
+    if not api_key and config.get("api_key_env"):
+         emitter.error(f"OpenAI API key from env var '{config.get('api_key_env')}' is missing.")
+         return None
+
+    model_name = config.get("model")
+    if not model_name:
+        emitter.error("OpenAI 'model' not specified in configuration.")
+        return None
+
+    try:
+        client = OpenAI()
+        emitter.information(f"Sending prompt to OpenAI model: {model_name}")
+
+        response = client.responses.create(model=model_name, input=prompt)
+        print(response)
+
+        return {
+            "text": response.output[0].content[0].text,
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens
+        }
+
+    except OpenAIError as e:
+        emitter.error(f"OpenAI API Error: {e}")
+        return None
+    except Exception as e:
+        emitter.error(f"An unexpected error occurred calling OpenAI: {e}")
         return None
