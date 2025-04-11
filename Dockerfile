@@ -23,7 +23,7 @@ RUN apt-get install -y --no-install-recommends dos2unix
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
 RUN update-alternatives --set python3 /usr/bin/python3.8
 RUN wget -q -O /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py && cd /tmp && python3 get-pip.py
-RUN python3 -m pip install unidiff
+RUN python3 -m pip install unidiff javalang requests dotenv pyyaml openai
 
 # Install Maven
 RUN cd /opt && wget -q https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz && \
@@ -44,12 +44,12 @@ RUN \
   apt-get install -y --no-install-recommends \
                 git \
                 build-essential \
-				subversion \
-				perl \
-				curl \
-				unzip \
-				cpanminus \
-				make
+                                subversion \
+                                perl \
+                                curl \
+                                unzip \
+                                cpanminus \
+                                make
 
 RUN cd /opt && git clone https://github.com/rjust/defects4j.git
 WORKDIR /opt/defects4j
@@ -66,3 +66,7 @@ WORKDIR /opt/EvoRepair
 RUN ./setup.sh
 RUN ln -s /opt/EvoRepair/bin/evorepair /usr/bin/evorepair
 RUN evorepair --help
+
+ENV OLLAMA_HOST=host.docker.internal
+VOLUME ["/opt/EvoRepair"]
+

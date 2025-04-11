@@ -82,4 +82,6 @@ total_timeout = 0
 
 # ------------------- LLM Oracle Extraction --------------------
 use_llm_extraction = True
+file_llm_config = _dir_root + "/llm_config.yml"
 file_bug_report = ""
+file_extracted_oracle = "" # LLM generated oracle will be saved in this file

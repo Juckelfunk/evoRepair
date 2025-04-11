@@ -6,25 +6,92 @@ from app import values, spectra, emitter, llm_integration
 import javalang
 
 def extract_oracle(spectra):
-    # Print out bug report
-    # TODO: More robust file handling (especially when no file was found)
-    print(values.file_bug_report)
-    with open(values.file_bug_report, 'r') as file:
-        bug_report = file.read()
-        print(bug_report)
+    # Read bug report
+    if Path(values.file_bug_report).is_file():
+        emitter.debug(f"Found bug report at: {values.file_bug_report}")
+        with open(values.file_bug_report, 'r') as file:
+            bug_report = file.read()
+    else:
+        emitter.error(f"Bug report file not found at expected location: {values.file_bug_report}")
+        return # TODO: Program should exit here
 
     # Get sus location
     location = spectra.get_top_suspicious_location()
     emitter.information(f"Suspicious location: {location}")
-    method = extract_method_from_definition(location)
-    print(f"Suspicious method:\n{method}")
+    method = extract_method_from_line(location)
 
-    llm_integration.generate_oracle(method, bug_report)
+    oracle = generate_oracle(method, bug_report)
+
+    with open(values.file_extracted_oracle, "w", encoding="utf-8") as f:
+        f.write(oracle)
 
     return None
 
+# Creates prompt and sends it to llm_integration
+def generate_oracle(method, bug_report):
+    template = (
+        "T wrapper_method(Parameters p ...) {"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\") {"
+        "    T result = original_method(p);"
+        "    if (<condition_for_buggy_behavior>) {"
+        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");"
+        "    }"
+        "    return result;"
+        "  } else {"
+        "    return original_method(p);"
+        "  }"
+        "}"
+    )
+
+    example1 = (
+        "public LegendItemCollection getLegendItems() {"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {"
+        "    try {"
+        "      return getLegendItems_original();"
+        "    } catch (NullPointerException e) {"
+        "        throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");"
+        "    }"
+        "  } else {"
+        "    return getLegendItems_original();"
+        "  }"
+        "}"
+    )
+
+    example2 = (
+        "public Partial with(DateTimeFieldType fieldType, int value) {"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {"
+        "    Partial result = with_original(fieldType, value);"
+        "    try {"
+        "      new Partial(result.getFieldTypes(), result.getValues());"
+        "    } catch (IllegalArgumentException e1) {"
+        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");"
+        "    }"
+        "    return result;"
+        "  } else {"
+        "    return with_original(fieldType, value);"
+        "  }"
+        "}"
+    )
+
+    prompt = (
+            "Generate a test oracle from the following bug report Do not give any further explanations. Do print out any notes."
+            "Do not use any formatting. Just print out the code itself. This is the bug report:" +
+            bug_report +
+            "This is the oracle template you should use:" +
+            template +
+            "The wrapper methods name should be the same as the original method name, while the original method should be called method_original"
+            "This is the method you should instrument:" +
+            method +
+            "This is the first example of an instrumentation you should implement:" +
+            example1 +
+            "This is a second example of an instrumentation you should implement:" +
+            example2
+    )
+
+    return llm_integration.call_llm(prompt)
+
 # Spectra gives us the most suspicious line of code, but we need the whole method. This function provides it.
-def extract_method_from_definition(location):
+def extract_method_from_line(location):
     emitter.debug(f"Target class: {location.class_name}")
     emitter.debug(f"Suspicious line: {location.line_number}")
 

@@ -1,50 +1,145 @@
 import json
-
+import os
+import yaml
+from pathlib import Path
 import requests
+from app import emitter, values
+from dotenv import load_dotenv
+#from openai import OpenAI, OpenAIError
+#import google.generativeai as genai
+#from google.api_core import exceptions as google_exceptions
 
-def generate_oracle(method, bug_report):
-    url = "http://localhost:11434/api/generate"
+def call_llm(prompt):
+    # Read config file
+    # TODO: Ideally the LLM config integrity should be checked when the EvoRepair config is read
+    config = read_config()
+    print(config)
+    if config is None:
+        emitter.error("Failed to load LLM configuration.")
+        return None
 
-    prompt = (
-        "Generate a test oracle from this bug report:" +
-        bug_report +
-        "This is the oracle template you should use:"
-        "T wrapper_method(Parameters p ...) {"
-        "  if (instrumentation_enabled) {"
-        "    T result = original_method(p);"
-        "    if (<condition_for_buggy_behavior>) {"
-        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");"
-        "    }"
-        "    return result;"
-        " } else {"
-        "    return original_method(p);"
-        "  }"
-        "}"
-        "This is the method you should instrument:" +
-        method
-    )
+    # Determine which model to use via key
+    llm_key = config.get("default") # TODO: Provide option to not use default
+    if not llm_key:
+        emitter.error("No 'default' LLM specified in configuration and no llm_key provided.")
+        return None
+    emitter.information(f"LLM configuration: '{llm_key}'")
+
+    # Get configuration for selected LLM
+    llm_configs = config.get("llms", {})
+    if llm_key not in llm_configs:
+        emitter.error(f"LLM configuration key '{llm_key}' not found in config file.")
+        return None
+    selected_llm_config = llm_configs[llm_key]
+    provider = selected_llm_config.get("provider")
+    if not provider:
+        emitter.error(f"Provider for LLM configuration '{llm_key}' not specified in configuration.")
+        return None
+
+    emitter.debug(f"Prompt:\n{prompt}")
+
+    # Make API call
+    if provider == "ollama":
+        result = _call_ollama(prompt, selected_llm_config)
+    else:
+        emitter.error(f"Unsupported LLM provider: '{provider}' in configuration '{llm_key}'.")
+        return None
+
+    emitter.information(f"Input tokens: {result['input_tokens']} Output tokens: {result['output_tokens']}")
+    emitter.debug(f"LLM response:\n{result['text']}")
+    return result['text']
+
+def read_config():
+    load_dotenv()  # Load .env file to include API keys in the environment.
+    if not Path(values.file_llm_config).is_file():
+        emitter.error(f"LLM config file does not exist: {values.file_llm_config}")
+        return # TODO: Program should exit
+
+    try:
+        with open(values.file_llm_config, "r") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        if not isinstance(config, dict):
+            emitter.error(f"Invalid YAML format in {values.file_llm_config}. Root should be a dictionary.")
+            return None
+    except yaml.YAMLError as e:
+        emitter.error(f"Error parsing YAML config file {values.file_llm_config}: {e}")
+        return None
+    except Exception as e:
+        emitter.error(f"Failed to read config file {values.file_llm_config}: {e}")
+        return None
+
+    return config
+
+def get_api_key(config):
+    api_key_env = config.get("api_key_env")
+    if not api_key_env:
+        # Providers like Ollama don't need an API Key
+        return None
+    api_key = os.environ.get(api_key_env)
+    if not api_key:
+        emitter.warning(f"API key environment variable '{api_key_env}' not found.")
+    return api_key
+
+def _call_ollama(prompt, config):
+    model_name = config.get("model")
+    api_base = config.get("api_base") # Expecting http://host:port
+
+    if not model_name:
+         emitter.error("Ollama 'model' not specified in configuration.")
+         return None
+    if not api_base:
+         emitter.error("Ollama 'api_base' (URL) not specified in configuration.")
+         return None
+
+    # Construct the full API endpoint URL
+    api_base = api_base.rstrip('/')
+    url = api_base + "/api/generate"
 
     payload = {
-        "model": "phi4",
+        "model": model_name,
         "prompt": prompt,
-        "options": {"num_ctx": 4096}
+        "stream": False,
+        "options": {"num_ctx": config.get("num_ctx", 4096)} # TODO: Should be in config, too
     }
 
     try:
-        response = requests.post(url, json=payload, stream=True)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        print("Error while sending prompt:", e)
-        return
+        emitter.information(f"Calling Ollama model {model_name} at {url}")
+        response = requests.post(url, data=json.dumps(payload))
+        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
 
-    full_answer = ""
-    for line in response.iter_lines():
-        if line:
-            try:
-                data = json.loads(line.decode("utf-8"))
-                full_answer += data.get("response", "")
-            except json.JSONDecodeError as e:
-                print("Could not decode JSON line:", line, e)
+        response_data = response.json()
 
-    print("Answer:")
-    print(full_answer)
+        response_text = ""
+        input_tokens = 0
+        output_tokens = 0
+
+        if "response" in response_data:
+             response_text = response_data["response"].strip()
+             # Ollama provides token counts in the non-streaming response
+             input_tokens = response_data.get("prompt_eval_count", 0)
+             output_tokens = response_data.get("eval_count", 0)
+        elif "error" in response_data:
+             emitter.error(f"Ollama API returned an error: {response_data['error']}")
+             return None
+        else:
+             emitter.warning("Unexpected response structure from Ollama.")
+             response_text = str(response_data) # Return raw data as fallback
+
+        return {
+            "text": response_text,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens
+        }
+
+    except requests.exceptions.ConnectionError:
+        emitter.error(f"Connection Error: Could not connect to Ollama at {url}. Is the server running?")
+        return None
+    except requests.exceptions.RequestException as e:
+        emitter.error(f"Request Error calling Ollama: {e}")
+        return None
+    except json.JSONDecodeError:
+        emitter.error(f"JSON Decode Error: Invalid response from Ollama: {response.text}")
+        return None
+    except Exception as e:
+        emitter.error(f"An unexpected error occurred calling Ollama: {e}")
+        return None
