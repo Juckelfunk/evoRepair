@@ -23,7 +23,9 @@ RUN apt-get install -y --no-install-recommends dos2unix
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
 RUN update-alternatives --set python3 /usr/bin/python3.8
 RUN wget -q -O /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py && cd /tmp && python3 get-pip.py
-RUN python3 -m pip install unidiff javalang requests dotenv pyyaml openai
+# !! To interact with Gemini we need to the google-genai package. But it requires at least Python 3.9, which is not available for Ubuntu 18.04
+# TODO: Python requirements should be in requirements.txt
+RUN python3 -m pip install unidiff javalang requests dotenv pyyaml openai google-api-core #google-genai
 
 # Install Maven
 RUN cd /opt && wget -q https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz && \
@@ -44,12 +46,12 @@ RUN \
   apt-get install -y --no-install-recommends \
                 git \
                 build-essential \
-                                subversion \
-                                perl \
-                                curl \
-                                unzip \
-                                cpanminus \
-                                make
+                subversion \
+                perl \
+                curl \
+                unzip \
+                cpanminus \
+                make
 
 RUN cd /opt && git clone https://github.com/rjust/defects4j.git
 WORKDIR /opt/defects4j

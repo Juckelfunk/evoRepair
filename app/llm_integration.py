@@ -6,8 +6,8 @@ import requests
 from app import emitter, values
 from dotenv import load_dotenv
 #from openai import OpenAI, OpenAIError
-#import google.generativeai as genai
-#from google.api_core import exceptions as google_exceptions
+from google import genai
+from google.api_core import exceptions as google_exceptions
 
 def call_llm(prompt):
     # Read config file
@@ -41,6 +41,8 @@ def call_llm(prompt):
     # Make API call
     if provider == "ollama":
         result = _call_ollama(prompt, selected_llm_config)
+    if provider == "gemini":
+        result = _call_gemini(prompt, selected_llm_config)
     else:
         emitter.error(f"Unsupported LLM provider: '{provider}' in configuration '{llm_key}'.")
         return None
@@ -142,4 +144,45 @@ def _call_ollama(prompt, config):
         return None
     except Exception as e:
         emitter.error(f"An unexpected error occurred calling Ollama: {e}")
+        return None
+
+def _call_gemini(prompt, config):
+    api_key = get_api_key(config)
+    # FIXME: When api_key_env field is missing in llm_config.yml, api_key will be None but no error will be thrown
+    if not api_key and config.get("api_key_env"):
+         emitter.error(f"Gemini API key from env var '{config.get('api_key_env')}' is missing.")
+         return None
+
+    model_name = config.get("model")
+    if not model_name:
+         emitter.error("Gemini 'model' not specified in configuration.")
+         return None
+
+    try:
+        emitter.warning(f"key: {api_key}")
+        client = genai.Client(api_key=api_key)
+        emitter.information(f"Sending prompt to Google Gemini model: {model_name}")
+
+        response = client.models.generate_content(model=model_name, contents=prompt)
+
+        input_tokens = 0
+        output_tokens = 0
+        if hasattr(response, 'usage_metadata'):
+             input_tokens = response.usage_metadata.prompt_token_count
+             output_tokens = response.usage_metadata.candidates_token_count
+
+        return {
+            "text": response.text,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens
+        }
+
+    except google_exceptions.PermissionDenied as e:
+         emitter.error(f"Google API Permission Denied: Check API key and permissions. Details: {e}")
+         return None
+    except google_exceptions.ResourceExhausted as e:
+        emitter.error(f"Google API Quota Exceeded. Details: {e}")
+        return None
+    except Exception as e:
+        emitter.error(f"An unexpected error occurred calling Google Gemini: {e}")
         return None
