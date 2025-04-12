@@ -8,6 +8,8 @@ app/__pycache__/
 logs
 output
 venv
+.venv
 *.DS_Store
 .devcontainer
 /tmp
+d4j-subjects_no_instr/*_no_instr

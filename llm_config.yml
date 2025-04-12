@@ -1,4 +1,4 @@
-default: gpt_4o_mini
+default: gemma3_local
 llms:
   phi4_docker:
     provider: ollama
@@ -8,6 +8,10 @@ llms:
     provider: ollama
     model: "gemma3:1b"
     api_base: "http://host.docker.internal:11434/"
+  phi4_local:
+    provider: ollama
+    model: "phi4"
+    api_base: "http://localhost:11434/"
   gemma3_local:
     provider: ollama
     model: "gemma3:1b"

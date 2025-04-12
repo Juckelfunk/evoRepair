@@ -19,7 +19,7 @@ def call_llm(prompt):
         return None
 
     # Determine which model to use via key
-    llm_key = config.get("default") # TODO: Provide option to not use default
+    llm_key = values.llm_model_override if getattr(values, 'llm_model_override', None) is not None else config.get("default")
     if not llm_key:
         emitter.error("No 'default' LLM specified in configuration and no llm_key provided.")
         return None

@@ -54,6 +54,7 @@ class Configurations:
         self.__runtime_config_values["no-change-localization"] = arg_list.no_change_localization
         self.__runtime_config_values["dir-output"] = arg_list.dir_output
         self.__runtime_config_values["no-test-filtered"] = arg_list.no_test_filtered
+        self.__runtime_config_values["llm_model_override"] = arg_list.llm_model
 
     def read_conf_file(self):
         emitter.normal("reading configuration values form configuration file")
@@ -156,6 +157,7 @@ class Configurations:
         values.num_iterations = self.__runtime_config_values["num-iterations"]
         values.total_timeout = self.__runtime_config_values["total-timeout"]
         values.no_test_filtered = self.__runtime_config_values["no-test-filtered"]
+        values.llm_model_override = self.__runtime_config_values.get("llm_model_override")
         if values.total_timeout is not None:
             values.time_system_end = values.time_system_start + values.total_timeout
         else:

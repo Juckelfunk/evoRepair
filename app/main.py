@@ -709,6 +709,10 @@ def parse_args():
                           help='do not filter test cases based on coverage during repair',
                           action='store_true',
                           default=False)
+    optional.add_argument('--llm-model',
+                          help='model name for language model (for test oracle generation); Choose from llm_config.yml',
+                          type=str,
+                          default=None)
     args = parser.parse_args()
 
     if 0 < args.num_iterations < args.passing_tests_partitions:

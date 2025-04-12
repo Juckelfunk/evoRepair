@@ -85,3 +85,4 @@ use_llm_extraction = True
 file_llm_config = _dir_root + "/llm_config.yml"
 file_bug_report = ""
 file_extracted_oracle = "" # LLM generated oracle will be saved in this file
+llm_model_override = None # If user chooses a model with --llm-model, it will be stored here

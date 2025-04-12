@@ -22,6 +22,10 @@ def extract_oracle(spectra):
 
     oracle = generate_oracle(method, bug_report)
 
+    if oracle is None:
+        emitter.error("LLM interactor returned None as oracle")
+        return None
+
     with open(values.file_extracted_oracle, "w", encoding="utf-8") as f:
         f.write(oracle)
 
