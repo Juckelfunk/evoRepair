@@ -18,18 +18,24 @@ def extract_oracle(spectra):
     # Get sus location
     location = spectra.get_top_suspicious_location()
     emitter.information(f"Suspicious location: {location}")
-    method = extract_method_from_line(location)
+    java_doc, method = extract_method_from_line(location)
+    print(java_doc)
+    print("----")
+    print(method)
 
-    oracle = generate_oracle(method, bug_report)
+    with open(values.dir_output / "extract.java", "w", encoding="utf-8") as f:
+        f.write(java_doc + "\n----\n" + method)
 
-    if oracle is None:
-        emitter.error("LLM interactor returned None as oracle")
-        return None
-
-    with open(values.file_extracted_oracle, "w", encoding="utf-8") as f:
-        f.write(oracle)
-
-    return None
+    # oracle = generate_oracle(method, bug_report)
+    #
+    # if oracle is None:
+    #     emitter.error("LLM interactor returned None as oracle")
+    #     return None
+    #
+    # with open(values.file_extracted_oracle, "w", encoding="utf-8") as f:
+    #     f.write(oracle)
+    #
+    # return None
 
 # Creates prompt and sends it to llm_integration
 def generate_oracle(method, bug_report):
@@ -78,18 +84,18 @@ def generate_oracle(method, bug_report):
     )
 
     prompt = (
-            "Generate a test oracle from the following bug report Do not give any further explanations. Do print out any notes."
-            "Do not use any formatting. Just print out the code itself. This is the bug report:" +
-            bug_report +
-            "This is the oracle template you should use:" +
-            template +
-            "The wrapper methods name should be the same as the original method name, while the original method should be called method_original"
-            "This is the method you should instrument:" +
-            method +
-            "This is the first example of an instrumentation you should implement:" +
-            example1 +
-            "This is a second example of an instrumentation you should implement:" +
-            example2
+        "Generate a test oracle from the following bug report Do not give any further explanations. Do print out any notes."
+        "Do not use any formatting. Just print out the code itself. This is the bug report:" +
+        bug_report +
+        "This is the oracle template you should use:" +
+        template +
+        "The wrapper methods name should be the same as the original method name, while the original method should be called method_original"
+        "This is the method you should instrument:" +
+        method +
+        "This is the first example of an instrumentation you should implement:" +
+        example1 +
+        "This is a second example of an instrumentation you should implement:" +
+        example2
     )
 
     return llm_integration.call_llm(prompt)
@@ -108,72 +114,59 @@ def extract_method_from_line(location):
         codelines = f.readlines()
         code_text = ''.join(codelines)
 
-    # Extract all methods from java file
-    # This seems quite inefficient for what we need. We already know the suspicious line, so we could just extract the
-    # surrounding method. However, this code extracts every method from the file.
-    lex = None
     tree = javalang.parse.parse(code_text)
-    methods = {}
+
     for _, method_node in tree.filter(javalang.tree.MethodDeclaration):
-        startpos, endpos, startline, endline = get_method_start_end(method_node, tree)
-        method_text, startline, endline, lex = get_method_text(startpos, endpos, startline, endline, lex, codelines)
-        methods[method_node.name] = method_text
+        # Node position is method header
+        header_start_line = method_node.position.line if method_node.position else None
+        if header_start_line is None:
+            continue
+        method_text, m_start, m_end, _ = extract_method_using_tokens(code_text, code_lines, header_start_line)
 
-        # FIXME: method text might contain parts of javadoc comment. It should be either fully included or completely excluded
-        # * @see #getLegendItem(int, int)
-        # */
-        # public LegendItemCollection getLegendItems() {
-        if startline <= location.line_number <= endline:
-            emitter.debug(f"Method line range: {startline} - {endline}")
-            return method_text
+        # Retrieve the JavaDoc from the AST, if available
+        java_doc = getattr(method_node, "documentation", "")
+        if java_doc and not java_doc.startswith("/**"):
+            java_doc = f"/**\n{java_doc}\n*/\n"
 
-"""
-From https://github.com/c2nes/javalang/issues/49
-Accessed 08.04.2025
-"""
+        # Check if the suspicious line falls within the extracted method range.
+        if m_start <= location.line_number <= m_end:
+            emitter.debug(f"Method line range: {m_start} - {m_end}")
+            return (java_doc, method_text)
+    return None
 
-def get_method_start_end(method_node, tree):
-    startpos  = None
-    endpos    = None
-    startline = None
-    endline   = None
-    for path, node in tree:
-        if startpos is not None and method_node not in path:
-            endpos = node.position
-            endline = node.position.line if node.position is not None else None
+# Extracts the entire method source code
+def extract_method_using_tokens(code_text, code_lines, header_start_line):
+    # Tokenize the entire source code.
+    tokens = list(javalang.tokenizer.tokenize(code_text))
+    m_start = header_start_line
+
+    # Find the first '{' token
+    start_idx = None
+    for i, token in enumerate(tokens):
+        if token.value == "{" and token.position[0] >= header_start_line:
+            start_idx = i
             break
-        if startpos is None and node == method_node:
-            startpos = node.position
-            startline = node.position.line if node.position is not None else None
-    return startpos, endpos, startline, endline
+    if start_idx is None: # No opening brace found
+        return "", header_start_line, header_start_line, header_start_line
 
-def get_method_text(startpos, endpos, startline, endline, last_endline_index, codelines):
-    if startpos is None:
-        return "", None, None, None
-    else:
-        startline_index = startline - 1
-        endline_index = endline - 1 if endpos is not None else None
+    # Count braces starting at the found token
+    brace_count = 0
+    method_token_end = None
+    for token in tokens[start_idx:]:
+        if token.value == "{":
+            brace_count += 1
+        elif token.value == "}":
+            brace_count -= 1
 
-        # 1. check for and fetch annotations
-        if last_endline_index is not None:
-            for line in codelines[(last_endline_index + 1):(startline_index)]:
-                if "@" in line:
-                    startline_index = startline_index - 1
-        meth_text = "<ST>".join(codelines[startline_index:endline_index])
-        meth_text = meth_text[:meth_text.rfind("}") + 1]
+        if brace_count == 0:
+            method_token_end = token
+            break
+    if method_token_end is None: # Fallback: use the last token if no balance is found. TODO: Maybe the program should exit here?
+        method_token_end = tokens[-1]
+    m_end = method_token_end.position[0]
 
-        # 2. remove trailing rbrace for last methods & any external content/comments
-        # if endpos is None and
-        if not abs(meth_text.count("}") - meth_text.count("{")) == 0:
-            # imbalanced braces
-            brace_diff = abs(meth_text.count("}") - meth_text.count("{"))
+    # Extract all lines from the header start line to the line of the closing token
+    extracted_lines = code_lines[m_start - 1: m_end]
+    method_text = "".join(extracted_lines)
 
-            for _ in range(brace_diff):
-                meth_text  = meth_text[:meth_text.rfind("}")]
-                meth_text  = meth_text[:meth_text.rfind("}") + 1]
-
-        meth_lines = meth_text.split("<ST>")
-        meth_text  = "".join(meth_lines)
-        last_endline_index = startline_index + (len(meth_lines) - 1)
-
-        return meth_text, (startline_index + 1), (last_endline_index + 1), last_endline_index
+    return method_text, m_start, m_end, m_end
