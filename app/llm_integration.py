@@ -19,7 +19,7 @@ def call_llm(prompt):
         return None
 
     # Determine which model to use via key
-    llm_key = values.llm_model_override if getattr(values, 'llm_model_override', None) is not None else config.get("default")
+    llm_key = values.llm_override if getattr(values, 'llm_override', None) is not None else config.get("default")
     if not llm_key:
         emitter.error("No 'default' LLM specified in configuration and no llm_key provided.")
         return None
@@ -77,7 +77,7 @@ def read_config():
 def get_api_key(config):
     api_key_env = config.get("api_key_env")
     if not api_key_env:
-        # Providers like Ollama don't need an API Key
+        emitter.warning("API key environment variable not specified in configuration.")
         return None
     api_key = os.environ.get(api_key_env)
     if not api_key:
@@ -150,7 +150,6 @@ def _call_ollama(prompt, config):
 
 def _call_gemini(prompt, config):
     api_key = get_api_key(config)
-    # FIXME: When api_key_env field is missing in llm_config.yml, api_key will be None but no error will be thrown
     if not api_key and config.get("api_key_env"):
          emitter.error(f"Gemini API key from env var '{config.get('api_key_env')}' is missing.")
          return None
@@ -161,7 +160,6 @@ def _call_gemini(prompt, config):
          return None
 
     try:
-        emitter.warning(f"key: {api_key}")
         client = genai.Client(api_key=api_key)
         emitter.information(f"Sending prompt to Google Gemini model: {model_name}")
 
@@ -196,8 +194,7 @@ def _call_openai(prompt, config):
 
     api_key = get_api_key(config)
     if not api_key and config.get("api_key_env"):
-         emitter.error(f"OpenAI API key from env var '{config.get('api_key_env')}' is missing.")
-         return None
+         emitter.warning(f"OpenAI API key from env var '{config.get('api_key_env')}' is missing.")
 
     model_name = config.get("model")
     if not model_name:
