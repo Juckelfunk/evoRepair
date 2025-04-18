@@ -1,0 +1,9 @@
+unidiff
+javalang
+requests
+dotenv
+pyyaml
+openai
+google-api-core
+google-genai
+

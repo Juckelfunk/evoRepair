@@ -30,9 +30,7 @@ def extract_oracle(spectra):
 
     # Extract method code
     java_doc, method_name, method_code, m_start, m_end = extract_method(location, code_lines, code_text)
-    print(java_doc)
-    print("----")
-    print(method_code)
+    emitter.information(f"Extracted method:\n{java_doc}\n{method_code}")
 
     with open(values.dir_output / "extract.java", "w", encoding="utf-8") as f:
         f.write(java_doc + "\n----\n" + method_code)
@@ -47,7 +45,6 @@ def extract_oracle(spectra):
 
     # Instrument method
     new_code_text = inject_oracle(code_lines, oracle, method_name, method_code, m_start, m_end)
-    print(f"New code text: {new_code_text}")
 
     with open(values.dir_output / "instr.java", "w", encoding="utf-8") as f:
         f.write(new_code_text)
@@ -57,69 +54,80 @@ def extract_oracle(spectra):
 # Creates prompt and sends it to llm_integration
 def generate_oracle(method_code, java_doc, bug_report):
     template = (
-        "T wrapper_method(Parameters p ...) {"
-        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\") {"
-        "    T result = original_method(p);"
-        "    if (<condition_for_buggy_behavior>) {"
-        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");"
-        "    }"
-        "    return result;"
-        "  } else {"
-        "    return original_method(p);"
-        "  }"
-        "}"
+        "T wrapper_method(Parameters p ...) {\n"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\") {\n"
+        "    T result = original_method(p);\n"
+        "    if (<condition_for_buggy_behavior>) {\n"
+        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
+        "    }\n"
+        "    return result;\n"
+        "  } else {\n"
+        "    return original_method(p);\n"
+        "  }\n"
+        "}\n"
     )
 
     # Chart 1
     example1 = (
-        "public LegendItemCollection getLegendItems() {"
-        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {"
-        "    try {"
-        "      return getLegendItems_original();"
-        "    } catch (NullPointerException e) {"
-        "        throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");"
-        "    }"
-        "  } else {"
-        "    return getLegendItems_original();"
-        "  }"
-        "}"
+        "public LegendItemCollection getLegendItems() {\n"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
+        "    try {\n"
+        "      return getLegendItems_original();\n"
+        "    } catch (NullPointerException e) {\n"
+        "        throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
+        "    }\n"
+        "  } else {\n"
+        "    return getLegendItems_original();\n"
+        "  }\n"
+        "}\n"
     )
 
     # Time 4
     example2 = (
-        "public Partial with(DateTimeFieldType fieldType, int value) {"
-        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {"
-        "    Partial result = with_original(fieldType, value);"
-        "    try {"
-        "      new Partial(result.getFieldTypes(), result.getValues());"
-        "    } catch (IllegalArgumentException e1) {"
-        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");"
-        "    }"
-        "    return result;"
-        "  } else {"
-        "    return with_original(fieldType, value);"
-        "  }"
-        "}"
+        "public Partial with(DateTimeFieldType fieldType, int value) {\n"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
+        "    Partial result = with_original(fieldType, value);\n"
+        "    try {\n"
+        "      new Partial(result.getFieldTypes(), result.getValues());\n"
+        "    } catch (IllegalArgumentException e1) {\n"
+        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
+        "    }\n"
+        "    return result;\n"
+        "  } else {\n"
+        "    return with_original(fieldType, value);\n"
+        "  }\n"
+        "}\n"
     )
 
     prompt = (
         "Generate a test oracle from the following bug report. Do not give any further explanations. Do not print out any notes."
-        "Do not use any formatting. Just print out the code itself. This is the bug report:" +
+        "Do not use any formatting. Just print out the code itself. This is the bug report:\n" +
         bug_report +
-        "This is the oracle template you should use:" +
+        "\nThis is the oracle template you should use:\n" +
         template +
-        "The wrapper methods name should be the same as the original method name, while the original method should be called method_original"
+        "\nThe wrapper methods name should be the same as the original method name, while the original method should be called method_original"
         "Do not print out the original method. Only print out the wrapper method."
-        "This is the method you should instrument:" +
+        "This is the method you should instrument:\n" +
         java_doc + "\n" +
         method_code +
-        "This is one example how your instrumentation should look like:" +
+        "\nThis is one example how your instrumentation should look like:\n" +
         example1 +
-        "This is a second example of how your instrumentation should look like:" +
+        "\nThis is a second example of how your instrumentation should look like:\n" +
         example2
     )
 
-    return llm_integration.call_llm(prompt)
+    oracle_code = llm_integration.call_llm(prompt).strip()
+
+    # Remove reasoning data, if it exists
+    oracle_code = re.sub(r"<think>.*?</think>", "", oracle_code, flags=re.DOTALL).strip()
+
+    # Strip code block notation if it exists
+    start_marker = "```java\n" # TODO: Sometimes the code block does not specify java
+    end_marker = "\n```"
+    if oracle_code.startswith(start_marker) and oracle_code.endswith(end_marker):
+        oracle_code = oracle_code[len(start_marker):-len(end_marker)].strip()
+
+    return oracle_code
 
 # Spectra gives us the most suspicious line of code, but we need the whole method. This function provides it.
 def extract_method(location, code_lines, code_text):
@@ -182,14 +190,6 @@ def get_method_start_end(code_text, header_start_line):
 
 def inject_oracle(code_lines, oracle_code, method_name, method_code, m_start, m_end):
     original_method_code = rename_method_in_text(method_code, method_name)
-    oracle_code = oracle_code.strip()
-
-    # Strip code block notation if it exists
-    start_marker = "```java\n"
-    end_marker = "\n```"
-    if oracle_code.startswith(start_marker) and oracle_code.endswith(end_marker):
-        oracle_code = oracle_code[len(start_marker):-len(end_marker)]
-        oracle_code.strip()
 
     injection_block = (
         "\n\n################\n# ORACLE\n################\n\n" +

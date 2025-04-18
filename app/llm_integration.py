@@ -13,7 +13,6 @@ def call_llm(prompt):
     # Read config file
     # TODO: Ideally the LLM config integrity should be checked when the EvoRepair config is read
     config = read_config()
-    print(config)
     if config is None:
         emitter.error("Failed to load LLM configuration.")
         return None

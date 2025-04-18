@@ -9,8 +9,6 @@ RUN apt-get install -y --no-install-recommends  \
        vim \
        nano \
        ant \
-       python \
-       python3.8 \
        python3-distutils \
        unzip \
        wget \
@@ -19,13 +17,25 @@ RUN apt-get install -y --no-install-recommends  \
 # install utility to transfrom dos to unix encodings and vice-versa
 RUN apt-get install -y --no-install-recommends dos2unix
 
-# set up python3.8
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
-RUN update-alternatives --set python3 /usr/bin/python3.8
-RUN wget -q -O /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py && cd /tmp && python3 get-pip.py
-# !! To interact with Gemini we need to the google-genai package. But it requires at least Python 3.9, which is not available for Ubuntu 18.04
-# TODO: Python requirements should be in requirements.txt
-RUN python3 -m pip install unidiff javalang requests dotenv pyyaml openai google-api-core #google-genai
+# Set up python3.9
+RUN apt-get install -y --no-install-recommends \
+        build-essential \
+        zlib1g-dev \
+        libncurses5-dev \
+        libgdbm-dev \
+        libnss3-dev \
+        libssl-dev \
+        libreadline-dev \
+        libffi-dev \
+        libsqlite3-dev \
+        libbz2-dev
+RUN wget -q -O /tmp/Python-3.9.13.tgz https://www.python.org/ftp/python/3.9.13/Python-3.9.13.tgz
+RUN mkdir /tmp/Python-3.9.13
+RUN tar xzf /tmp/Python-3.9.13.tgz -C /tmp
+WORKDIR /tmp/Python-3.9.13
+RUN ./configure --enable-optimizations
+RUN make -j"$(nproc)"
+RUN make install
 
 # Install Maven
 RUN cd /opt && wget -q https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz && \
@@ -55,7 +65,7 @@ RUN \
 
 RUN cd /opt && git clone https://github.com/rjust/defects4j.git
 WORKDIR /opt/defects4j
-RUN git checkout tags/v2.1.0
+RUN git checkout tags/v2.1.0 # EvoRepair doesn't run on the newest version
 RUN cpanm --installdeps .
 RUN ./init.sh
 ENV PATH="/opt/defects4j/framework/bin:${PATH}"
@@ -66,9 +76,9 @@ RUN patch -p1 -i /tmp/defects4j.diff
 ADD . /opt/EvoRepair
 WORKDIR /opt/EvoRepair
 RUN ./setup.sh
+RUN python3 -m pip install -r requirements.txt
 RUN ln -s /opt/EvoRepair/bin/evorepair /usr/bin/evorepair
 RUN evorepair --help
 
 ENV OLLAMA_HOST=host.docker.internal
-VOLUME ["/opt/EvoRepair"]
 

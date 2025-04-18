@@ -1,4 +1,4 @@
-default: gemma3_local
+default: phi4_local
 llms:
   #### Docker ####
   phi4_docker:
@@ -40,5 +40,8 @@ llms:
   gpt_4o_mini:
     provider: openai
     model: gpt-4o-mini
+    #api_key_env: "OPENAI_API_KEY"
+  o3_mini:
+    provider: openai
+    model: o3-mini
     api_key_env: "OPENAI_API_KEY"
-
