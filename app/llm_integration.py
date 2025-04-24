@@ -101,8 +101,8 @@ def _call_ollama(prompt, config):
     payload = {
         "model": model_name,
         "prompt": prompt,
-        "stream": False,
-        "options": {"num_ctx": config.get("num_ctx", 4096)} # TODO: Should be in config, too
+        "stream": False#,
+        #"options": {"num_ctx": config.get("num_ctx", 4096)} # TODO: Should be in config, too
     }
 
     try:

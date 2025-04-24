@@ -51,11 +51,11 @@ def extract_oracle(spectra):
 
     return None
 
-# Creates prompt and sends it to llm_integration
+# Creates a prompt and sends it to llm_integration
 def generate_oracle(method_code, java_doc, bug_report):
     template = (
         "T wrapper_method(Parameters p ...) {\n"
-        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\") {\n"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
         "    T result = original_method(p);\n"
         "    if (<condition_for_buggy_behavior>) {\n"
         "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
@@ -100,25 +100,22 @@ def generate_oracle(method_code, java_doc, bug_report):
     )
 
     prompt = (
-        "Generate a test oracle from the following bug report. Do not give any further explanations. Do not print out any notes."
-        "Do not use any formatting. Just print out the code itself. This is the bug report:\n" +
+        "Provide a test oracle from the following bug report Do not give any further explanations. Do print out any notes."
+        "Do not use any formatting. Just print out the code itself.\n"
+        "This is the bug report:\n" +
         bug_report +
         "\nThis is the oracle template you should use:\n" +
         template +
-        "\nThe wrapper methods name should be the same as the original method name, while the original method should be called method_original"
-        "Do not print out the original method. Only print out the wrapper method."
-        "This is the method you should instrument:\n" +
-        java_doc + "\n" +
-        method_code +
-        "\nThis is one example how your instrumentation should look like:\n" +
-        example1 +
-        "\nThis is a second example of how your instrumentation should look like:\n" +
-        example2
+        "\nThe wrapper method name should be the same as the original method name, while the original method will be renamed to method_original."
+        "You don't need to print out the original method only the wrapper method.\n"
+        "\nThis is the method you should instrument:\n" +
+        method_code
     )
 
     oracle_code = llm_integration.call_llm(prompt).strip()
 
     # Remove reasoning data, if it exists
+    # FIXME: This does not always cut the thinking data (maybe not all thinking data is marked with <think>?
     oracle_code = re.sub(r"<think>.*?</think>", "", oracle_code, flags=re.DOTALL).strip()
 
     # Strip code block notation if it exists
@@ -126,6 +123,9 @@ def generate_oracle(method_code, java_doc, bug_report):
     end_marker = "\n```"
     if oracle_code.startswith(start_marker) and oracle_code.endswith(end_marker):
         oracle_code = oracle_code[len(start_marker):-len(end_marker)].strip()
+
+    # TODO: Anything outside of the code block should also be cut.
+    # TODO: Maybe we could also try to cut the original method if the LLM also prints it out?
 
     return oracle_code
 

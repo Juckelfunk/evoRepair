@@ -76,6 +76,7 @@ RUN patch -p1 -i /tmp/defects4j.diff
 ADD . /opt/EvoRepair
 WORKDIR /opt/EvoRepair
 RUN ./setup.sh
+RUN ./checkout_d4j.sh
 RUN python3 -m pip install -r requirements.txt
 RUN ln -s /opt/EvoRepair/bin/evorepair /usr/bin/evorepair
 RUN evorepair --help

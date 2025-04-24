@@ -1,4 +1,4 @@
-default: phi4_local
+default: gemma3_local
 llms:
   #### Docker ####
   phi4_docker:
@@ -9,7 +9,7 @@ llms:
     provider: ollama
     model: "gemma3:1b"
     api_base: "http://host.docker.internal:11434/"
-  deepseek_r1_docker:
+  r1_docker:
     provider: ollama
     model: "deepseek-r1:14b"
     api_base: "http://host.docker.internal:11434/"
@@ -23,21 +23,21 @@ llms:
     provider: ollama
     model: "gemma3:1b"
     api_base: "http://localhost:11434/"
-  deepseek_r1_local:
+  r1_local:
     provider: ollama
     model: "deepseek-r1:14b"
     api_base: "http://localhost:11434/"
 
   #### External ####
-  gemini_2_0_flash:
+  2_5_flash:
     provider: gemini
-    model: "gemini-2.0-flash"
+    model: "gemini-2.5-flash-preview-04-17"
     api_key_env: "GEMINI_API_KEY"
-  gemini_2_5_pro:
+  2_5_pro:
     provider: gemini
     model: "gemini-2.5-pro-preview-03-25"
     api_key_env: "GEMINI_API_KEY"
-  gpt_4o_mini:
+  4o_mini:
     provider: openai
     model: gpt-4o-mini
     #api_key_env: "OPENAI_API_KEY"
