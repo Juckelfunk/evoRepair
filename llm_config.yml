@@ -1,6 +1,7 @@
 default: gemma3_local
 llms:
   #### Docker ####
+
   phi4_docker:
     provider: ollama
     model: "phi4"
@@ -13,8 +14,14 @@ llms:
     provider: ollama
     model: "deepseek-r1:14b"
     api_base: "http://host.docker.internal:11434/"
+  qwen_docker:
+    provider: ollama
+    model: "qwen3:14b"
+    api_base: "http://host.docker.internal:11434/"
+
 
   #### Local ####
+
   phi4_local:
     provider: ollama
     model: "phi4"
@@ -27,8 +34,14 @@ llms:
     provider: ollama
     model: "deepseek-r1:14b"
     api_base: "http://localhost:11434/"
+  qwen_local:
+    provider: ollama
+    model: "qwen3:14b"
+    api_base: "http://localhost:11434/"
+
 
   #### External ####
+
   2_5_flash:
     provider: gemini
     model: "gemini-2.5-flash-preview-04-17"

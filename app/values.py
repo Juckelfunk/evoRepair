@@ -86,3 +86,65 @@ file_llm_config = _dir_root + "/llm_config.yml"
 file_bug_report = ""
 file_extracted_oracle = "" # LLM generated oracle will be saved in this file
 llm_override = None # If user chooses a model with --llm, it will be stored here
+
+llm_prompt_template = (
+        "T wrapper_method(Parameters p ...) {\n"
+        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
+        "    T result = original_method(p);\n"
+        "    if (<condition_for_buggy_behavior>) {\n"
+        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
+        "    }\n"
+        "    return result;\n"
+        "  } else {\n"
+        "    return original_method(p);\n"
+        "  }\n"
+        "}\n"
+    )
+
+# Chart 1
+llm_prompt_example_1 = (
+    "public LegendItemCollection getLegendItems() {\n"
+    "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
+    "    try {\n"
+    "      return getLegendItems_original();\n"
+    "    } catch (NullPointerException e) {\n"
+    "        throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
+    "    }\n"
+    "  } else {\n"
+    "    return getLegendItems_original();\n"
+    "  }\n"
+    "}"
+)
+
+# Time 4
+llm_prompt_example_2 = (
+    "public Partial with(DateTimeFieldType fieldType, int value) {\n"
+    "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
+    "    Partial result = with_original(fieldType, value);\n"
+    "    try {\n"
+    "      new Partial(result.getFieldTypes(), result.getValues());\n"
+    "    } catch (IllegalArgumentException e1) {\n"
+    "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
+    "    }\n"
+    "    return result;\n"
+    "  } else {\n"
+    "    return with_original(fieldType, value);\n"
+    "  }\n"
+    "}"
+)
+
+# Math 53
+llm_prompt_example_3 = (
+    "public Complex add(Complex rhs) throws NullArgumentException {\n"
+    "    if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
+    "        Complex result = add_original(rhs);\n"
+    "        if ((this.isNaN() || rhs.isNaN())\n"
+    "                && !(Double.isNaN(result.getReal()) && Double.isNaN(result.getImaginary()))) {\n"
+    "            throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
+    "        }\n"
+    "        return result;\n"
+    "    } else {\n"
+    "        return add_original(rhs);\n"
+    "    }\n"
+    "}"
+)

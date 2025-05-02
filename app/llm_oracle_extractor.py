@@ -1,10 +1,11 @@
-# Returns oracle
 import os
 import re
 from pathlib import Path
 
 from app import values, spectra, emitter, llm_integration
 import javalang
+
+from app.values import llm_prompt_example_3, llm_prompt_example_1, llm_prompt_template
 
 def extract_oracle(spectra):
     # Read bug report
@@ -14,13 +15,13 @@ def extract_oracle(spectra):
             bug_report = file.read()
     else:
         emitter.error(f"Bug report file not found at expected location: {values.file_bug_report}")
-        return # TODO: Program should exit here
+        return # TODO: Program should exit here with error
 
     # Get sus location
-    location = spectra.get_top_suspicious_location()
+    location = spectra.get_top_suspicious_locations(top_n=1)[0]
     emitter.information(f"Suspicious location: {location}")
 
-    # Read in suspicious Java file
+    # Read in java file with suspicious method
     parts = location.class_name.split('.')
     target_file = Path(values.dir_info["source"], *parts).with_suffix(".java")
     assert os.path.isfile(target_file), target_file
@@ -53,81 +54,41 @@ def extract_oracle(spectra):
 
 # Creates a prompt and sends it to llm_integration
 def generate_oracle(method_code, java_doc, bug_report):
-    template = (
-        "T wrapper_method(Parameters p ...) {\n"
-        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
-        "    T result = original_method(p);\n"
-        "    if (<condition_for_buggy_behavior>) {\n"
-        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
-        "    }\n"
-        "    return result;\n"
-        "  } else {\n"
-        "    return original_method(p);\n"
-        "  }\n"
-        "}\n"
-    )
-
-    # Chart 1
-    example1 = (
-        "public LegendItemCollection getLegendItems() {\n"
-        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
-        "    try {\n"
-        "      return getLegendItems_original();\n"
-        "    } catch (NullPointerException e) {\n"
-        "        throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
-        "    }\n"
-        "  } else {\n"
-        "    return getLegendItems_original();\n"
-        "  }\n"
-        "}\n"
-    )
-
-    # Time 4
-    example2 = (
-        "public Partial with(DateTimeFieldType fieldType, int value) {\n"
-        "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
-        "    Partial result = with_original(fieldType, value);\n"
-        "    try {\n"
-        "      new Partial(result.getFieldTypes(), result.getValues());\n"
-        "    } catch (IllegalArgumentException e1) {\n"
-        "      throw new RuntimeException(\"[Defects4J_BugReport_Violation]\");\n"
-        "    }\n"
-        "    return result;\n"
-        "  } else {\n"
-        "    return with_original(fieldType, value);\n"
-        "  }\n"
-        "}\n"
-    )
-
     prompt = (
-        "Provide a test oracle from the following bug report Do not give any further explanations. Do print out any notes."
-        "Do not use any formatting. Just print out the code itself.\n"
-        "This is the bug report:\n" +
-        bug_report +
-        "\nThis is the oracle template you should use:\n" +
-        template +
-        "\nThe wrapper method name should be the same as the original method name, while the original method will be renamed to method_original."
-        "You don't need to print out the original method only the wrapper method.\n"
-        "\nThis is the method you should instrument:\n" +
-        method_code
+            "Provide a test oracle from the following bug report. Do not give any further explanations. Do not print out any notes."
+            "Do not use any formatting. Just print out the code itself. This is the bug report:\n" +
+            bug_report +
+            "\nThis is the oracle template you should use:\n" +
+            llm_prompt_template +
+            "\nThe wrapper methods name should be the same as the original method name, while the original method should be called method_original"
+            "Do not print out the original method. Only print out the wrapper method."
+            "This is the method you should instrument:\n" +
+            java_doc + "\n" +
+            method_code +
+            "\nThis is one example how your instrumentation should look like:\n" +
+            llm_prompt_example_1 +
+            "\nThis is a second example of how your instrumentation should look like:\n" +
+            llm_prompt_example_3
     )
 
     oracle_code = llm_integration.call_llm(prompt).strip()
 
-    # Remove reasoning data, if it exists
-    # FIXME: This does not always cut the thinking data (maybe not all thinking data is marked with <think>?
-    oracle_code = re.sub(r"<think>.*?</think>", "", oracle_code, flags=re.DOTALL).strip()
+    # Remove everything around the codeblock, if it exists
+    codeblock_pattern = re.compile(
+        r'^\s*```(?:java)?\s*\n'  # Open codeblock with ``` or ```java
+        r'([\s\S]*?)'  # Everythin in between
+        r'\n```',  # Close codeblock
+        flags=re.MULTILINE
+    )
+    m = codeblock_pattern.search(oracle_code)
+    if m:
+        return m.group(1).strip()
 
-    # Strip code block notation if it exists
-    start_marker = "```java\n" # TODO: Sometimes the code block does not specify java
-    end_marker = "\n```"
-    if oracle_code.startswith(start_marker) and oracle_code.endswith(end_marker):
-        oracle_code = oracle_code[len(start_marker):-len(end_marker)].strip()
+    # When no code block is found, remove reasoning data, inside <think> block, if it exists
+    thinking_pattern = re.compile(r'<think>[\s\S]*?</think>', flags=re.IGNORECASE)
+    cleaned = thinking_pattern.sub('', oracle_code).strip()
 
-    # TODO: Anything outside of the code block should also be cut.
-    # TODO: Maybe we could also try to cut the original method if the LLM also prints it out?
-
-    return oracle_code
+    return cleaned
 
 # Spectra gives us the most suspicious line of code, but we need the whole method. This function provides it.
 def extract_method(location, code_lines, code_text):
@@ -137,6 +98,7 @@ def extract_method(location, code_lines, code_text):
         # Node position is method header
         header_start_line = method_node.position.line if method_node.position else None
         if header_start_line is None:
+            emitter.warning(f"header_start_line is None")
             continue
 
         # Extract all lines from the header start line to the line of the closing token
@@ -153,6 +115,7 @@ def extract_method(location, code_lines, code_text):
         if m_start <= location.line_number <= m_end:
             emitter.debug(f"Method line range: {m_start} - {m_end}")
             return java_doc, method_node.name, method_code, m_start, m_end
+    emitter.warning(f"Could not find suspicious method at location {location}")
     return None
 
 # This function determines a methods start and end line, given a method header line and the entire files source code
