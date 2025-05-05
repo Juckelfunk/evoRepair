@@ -1,14 +1,14 @@
+# Returns oracle
 import os
 import re
-from collections import Counter
 from pathlib import Path
 
 from app import values, spectra, emitter, llm_integration
 import javalang
 
-from app.values import llm_prompt_example_3, llm_prompt_example_1, llm_prompt_template
+from app.values import llm_prompt_template, llm_prompt_example_1, llm_prompt_example_3
 
-def extract_oracle(spectra, top_n=10):
+def extract_oracle(spectra):
     # Read bug report
     if Path(values.file_bug_report).is_file():
         emitter.debug(f"Found bug report at: {values.file_bug_report}")
@@ -16,98 +16,117 @@ def extract_oracle(spectra, top_n=10):
             bug_report = file.read()
     else:
         emitter.error(f"Bug report file not found at expected location: {values.file_bug_report}")
-        return
+        return None
 
-    # Get suspicious locations
-    locations = spectra.get_top_suspicious_locations(top_n=top_n)
-    num_locations = len(locations)
-    emitter.information(f"Top {num_locations} suspicious locations:")
-    for idx, loc in enumerate(locations, start=1):
-        emitter.information(f"{idx}: {loc}")
+    #### Retrieve top suspicious locations ####
 
-    # Track how often each method is extracted and its weighted points
-    method_counts = Counter()
-    method_points = Counter()
-    method_info = {}
+    NUM_CANDIDATES = 10
+    locations = spectra.get_top_suspicious_locations(NUM_CANDIDATES)
+    if not locations:
+        emitter.error("No suspicious locations found")
+        return None
+    emitter.information(f"Retrieved top {len(locations)} suspicious locations")
 
-    for idx, loc in enumerate(locations, start=1):
-        # Assign weight dynamically based on number of locations
-        weight = num_locations - idx + 1
+    # Build context for selection prompt
+    suspicious_locations_context = "\n".join(
+        f"{i+1}. {loc.class_name}:{loc.line_number}"
+        for i, loc in enumerate(locations)
+    )
 
-        # Read in java file for this location, handling inner classes
-        full_class = loc.class_name
-        pkg, _, cls_inner = full_class.rpartition('.')
-        outer_cls = cls_inner.split('$', 1)[0]
-        dir_parts = pkg.split('.') if pkg else []
-        target_file = Path(values.dir_info["source"], *dir_parts, outer_cls).with_suffix(".java")
+    candidate_methods_prompt_details = []
+    candidates = []
+    seen_signatures = set()
+
+    # Gather unique method signatures, JavaDocs, and full methods for each candidate
+    for i, loc in enumerate(locations):
+        # Resolve file for inner classes
+        parts = loc.class_name.split('.')
+        raw = parts[-1]
+        outer = raw.split('$', 1)[0]
+        target_file = Path(values.dir_info["source"], *parts[:-1], outer).with_suffix(".java")
         if not os.path.isfile(target_file):
-            emitter.error(f"Source file not found for class {loc.class_name}: {target_file}")
+            emitter.warning(f"Candidate {i+1} file not found: {target_file}")
             continue
-        with open(target_file, 'r') as f:
+        with open(target_file, 'r', encoding='utf-8') as f:
             code_lines = f.readlines()
             code_text = ''.join(code_lines)
 
-        # Extract method containing the suspicious line
-        result = extract_method(loc, code_lines, code_text)
-        if result is None:
+        # Extract method containing the suspicious location
+        extract = extract_method(loc, code_lines, code_text)
+        if not extract:
+            emitter.warning(f"Could not extract method for candidate {i+1} at {loc}")
             continue
-        java_doc, method_name, method_code, m_start, m_end = result
+        java_doc, method_name, method_code, m_start, m_end = extract
 
-        # Use method signature (first line) as key
-        signature = method_code.strip().splitlines()[0].strip()
-        method_counts[signature] += 1
-        method_points[signature] += weight
+        # Build complete signature up to the opening brace
+        sig_lines = []
+        for line in method_code.splitlines():
+            if '{' in line:
+                sig_lines.append(line.split('{')[0].strip())
+                break
+            sig_lines.append(line.strip())
+        signature_line = " ".join(sig_lines).strip()
 
-        # Store info for this method if not already stored
-        if signature not in method_info:
-            method_info[signature] = {
-                "java_doc": java_doc,
-                "method_name": method_name,
-                "method_code": method_code,
-                "m_start": m_start,
-                "m_end": m_end,
-                "code_lines": code_lines
-            }
+        # Skip duplicates
+        if signature_line in seen_signatures:
+            emitter.debug(f"Skipping duplicate candidate {i+1} - signature: {signature_line}")
+            continue
+        seen_signatures.add(signature_line)
 
-    # Print summary of extracted methods
-    emitter.information("Method extraction summary:")
-    for signature, info in method_info.items():
-        count = method_counts[signature]
-        points = method_points[signature]
-        emitter.information(f"Method {signature} extracted {count} times, total points {points}")
+        # Debug: output full extracted method
+        emitter.debug(f"Candidate {i+1} - {loc.class_name}:{loc.line_number} -> Extracted method:\n{method_code}")
 
-    # Select the method with highest points, handling ties
-    if not method_points:
-        emitter.error("No methods extracted from suspicious locations")
-        return
-
-    max_points = max(method_points.values())
-    candidates = [sig for sig, pts in method_points.items() if pts == max_points]
-    if len(candidates) > 1:
-        emitter.warning(f"Tie detected between methods: {candidates}, choosing by occurrence counts")
-        # Tie-break by highest extraction count, then by insertion order
-        best_signature = max(
-            candidates,
-            key=lambda sig: (method_counts[sig], -list(method_info.keys()).index(sig))
+        emitter.information(f"Candidate {i+1} signature: {signature_line}")
+        candidate_methods_prompt_details.append(
+            f"{len(candidates)+1}. {java_doc}\n{signature_line}\n\n"
         )
-    else:
-        best_signature = candidates[0]
+        candidates.append({
+            "index": len(candidates)+1,
+            "location": loc,
+            "code_lines": code_lines,
+            "java_doc": java_doc,
+            "method_name": method_name,
+            "method_code": method_code,
+            "m_start": m_start,
+            "m_end": m_end,
+            "signature": signature_line,
+        })
 
-    best_info = method_info[best_signature]
-    java_doc = best_info["java_doc"]
-    method_name = best_info["method_name"]
-    method_code = best_info["method_code"]
-    m_start = best_info["m_start"]
-    m_end = best_info["m_end"]
-    code_lines = best_info["code_lines"]
+    #### Select Candidate ####
+    if not candidates:
+        emitter.error("No valid candidate methods extracted after filtering duplicates")
+        return None
 
-    emitter.information(f"Selected method: {best_signature} with {method_counts[best_signature]} occurrences and {method_points[best_signature]} points")
+    selection_prompt = (
+        f"Given the following bug report and suspicious code locations, select the single most likely "
+        f"method signature from the candidate list that needs to be instrumented or modified to fix the bug.\n\n"
+        f"Bug Report:\n------\n{bug_report}\n------\n\n"
+        f"Top {len(locations)} Suspicious Locations:\n------\n{suspicious_locations_context}\n------\n\n"
+        f"Candidate Methods (Signature and JavaDoc):\n------\n"
+        f"{''.join(candidate_methods_prompt_details)}"
+        f"------\n\n"
+        f"Output *only* the full method signature line of the single most likely method from the list above. "
+        f"Do not include the opening curly brace '{{'. Do not include any other text, explanations, or formatting."
+    )
+    selected_signature = llm_integration.call_llm(selection_prompt).strip()
+    selected_signature = re.sub(r"```.*?```", "", selected_signature, flags=re.DOTALL).strip()
 
-    # Write the selected method to extract.java
-    with open(values.dir_output / "extract.java", "w", encoding="utf-8") as f:
-        f.write(java_doc + "\n----\n" + method_code)
+    emitter.information(f"Selected signature: {selected_signature}")
 
-    # Generate oracle
+    chosen = next((c for c in candidates if c["signature"] == selected_signature), None)
+    if not chosen:
+        emitter.error(f"Selected signature not matched: {selected_signature}")
+        return None
+
+    # Prepare chosen method for oracle generation
+    code_lines = chosen["code_lines"]
+    java_doc = chosen["java_doc"]
+    method_name = chosen["method_name"]
+    method_code = chosen["method_code"]
+    m_start = chosen["m_start"]
+    m_end = chosen["m_end"]
+
+    #### Generate oracle ####
     oracle = generate_oracle(method_code, java_doc, bug_report)
     if oracle is None:
         emitter.error("LLM interactor returned None as oracle")
@@ -115,7 +134,7 @@ def extract_oracle(spectra, top_n=10):
     with open(values.file_extracted_oracle, "w", encoding="utf-8") as f:
         f.write(oracle)
 
-    # Instrument method
+    #### Instrument method ####
     new_code_text = inject_oracle(code_lines, oracle, method_name, method_code, m_start, m_end)
     with open(values.dir_output / "instr.java", "w", encoding="utf-8") as f:
         f.write(new_code_text)
