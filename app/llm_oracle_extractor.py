@@ -1,5 +1,6 @@
 import os
 import re
+from collections import Counter
 from pathlib import Path
 
 from app import values, spectra, emitter, llm_integration
@@ -7,7 +8,7 @@ import javalang
 
 from app.values import llm_prompt_example_3, llm_prompt_example_1, llm_prompt_template
 
-def extract_oracle(spectra):
+def extract_oracle(spectra, top_n=10):
     # Read bug report
     if Path(values.file_bug_report).is_file():
         emitter.debug(f"Found bug report at: {values.file_bug_report}")
@@ -15,24 +16,94 @@ def extract_oracle(spectra):
             bug_report = file.read()
     else:
         emitter.error(f"Bug report file not found at expected location: {values.file_bug_report}")
-        return # TODO: Program should exit here with error
+        return
 
-    # Get sus location
-    location = spectra.get_top_suspicious_locations(top_n=1)[0]
-    emitter.information(f"Suspicious location: {location}")
+    # Get suspicious locations
+    locations = spectra.get_top_suspicious_locations(top_n=top_n)
+    num_locations = len(locations)
+    emitter.information(f"Top {num_locations} suspicious locations:")
+    for idx, loc in enumerate(locations, start=1):
+        emitter.information(f"{idx}: {loc}")
 
-    # Read in java file with suspicious method
-    parts = location.class_name.split('.')
-    target_file = Path(values.dir_info["source"], *parts).with_suffix(".java")
-    assert os.path.isfile(target_file), target_file
-    with open(target_file, 'r') as f: # TODO: More robust file handling
-        code_lines = f.readlines()
-        code_text = ''.join(code_lines)
+    # Track how often each method is extracted and its weighted points
+    method_counts = Counter()
+    method_points = Counter()
+    method_info = {}
 
-    # Extract method code
-    java_doc, method_name, method_code, m_start, m_end = extract_method(location, code_lines, code_text)
-    emitter.information(f"Extracted method:\n{java_doc}\n{method_code}")
+    for idx, loc in enumerate(locations, start=1):
+        # Assign weight dynamically based on number of locations
+        weight = num_locations - idx + 1
 
+        # Read in java file for this location, handling inner classes
+        full_class = loc.class_name
+        pkg, _, cls_inner = full_class.rpartition('.')
+        outer_cls = cls_inner.split('$', 1)[0]
+        dir_parts = pkg.split('.') if pkg else []
+        target_file = Path(values.dir_info["source"], *dir_parts, outer_cls).with_suffix(".java")
+        if not os.path.isfile(target_file):
+            emitter.error(f"Source file not found for class {loc.class_name}: {target_file}")
+            continue
+        with open(target_file, 'r') as f:
+            code_lines = f.readlines()
+            code_text = ''.join(code_lines)
+
+        # Extract method containing the suspicious line
+        result = extract_method(loc, code_lines, code_text)
+        if result is None:
+            continue
+        java_doc, method_name, method_code, m_start, m_end = result
+
+        # Use method signature (first line) as key
+        signature = method_code.strip().splitlines()[0].strip()
+        method_counts[signature] += 1
+        method_points[signature] += weight
+
+        # Store info for this method if not already stored
+        if signature not in method_info:
+            method_info[signature] = {
+                "java_doc": java_doc,
+                "method_name": method_name,
+                "method_code": method_code,
+                "m_start": m_start,
+                "m_end": m_end,
+                "code_lines": code_lines
+            }
+
+    # Print summary of extracted methods
+    emitter.information("Method extraction summary:")
+    for signature, info in method_info.items():
+        count = method_counts[signature]
+        points = method_points[signature]
+        emitter.information(f"Method {signature} extracted {count} times, total points {points}")
+
+    # Select the method with highest points, handling ties
+    if not method_points:
+        emitter.error("No methods extracted from suspicious locations")
+        return
+
+    max_points = max(method_points.values())
+    candidates = [sig for sig, pts in method_points.items() if pts == max_points]
+    if len(candidates) > 1:
+        emitter.warning(f"Tie detected between methods: {candidates}, choosing by occurrence counts")
+        # Tie-break by highest extraction count, then by insertion order
+        best_signature = max(
+            candidates,
+            key=lambda sig: (method_counts[sig], -list(method_info.keys()).index(sig))
+        )
+    else:
+        best_signature = candidates[0]
+
+    best_info = method_info[best_signature]
+    java_doc = best_info["java_doc"]
+    method_name = best_info["method_name"]
+    method_code = best_info["method_code"]
+    m_start = best_info["m_start"]
+    m_end = best_info["m_end"]
+    code_lines = best_info["code_lines"]
+
+    emitter.information(f"Selected method: {best_signature} with {method_counts[best_signature]} occurrences and {method_points[best_signature]} points")
+
+    # Write the selected method to extract.java
     with open(values.dir_output / "extract.java", "w", encoding="utf-8") as f:
         f.write(java_doc + "\n----\n" + method_code)
 
@@ -46,7 +117,6 @@ def extract_oracle(spectra):
 
     # Instrument method
     new_code_text = inject_oracle(code_lines, oracle, method_name, method_code, m_start, m_end)
-
     with open(values.dir_output / "instr.java", "w", encoding="utf-8") as f:
         f.write(new_code_text)
 
@@ -55,20 +125,20 @@ def extract_oracle(spectra):
 # Creates a prompt and sends it to llm_integration
 def generate_oracle(method_code, java_doc, bug_report):
     prompt = (
-            "Provide a test oracle from the following bug report. Do not give any further explanations. Do not print out any notes."
-            "Do not use any formatting. Just print out the code itself. This is the bug report:\n" +
-            bug_report +
-            "\nThis is the oracle template you should use:\n" +
-            llm_prompt_template +
-            "\nThe wrapper methods name should be the same as the original method name, while the original method should be called method_original"
-            "Do not print out the original method. Only print out the wrapper method."
-            "This is the method you should instrument:\n" +
-            java_doc + "\n" +
-            method_code +
-            "\nThis is one example how your instrumentation should look like:\n" +
-            llm_prompt_example_1 +
-            "\nThis is a second example of how your instrumentation should look like:\n" +
-            llm_prompt_example_3
+        "Provide a test oracle from the following bug report. Do not give any further explanations. Do not print out any notes."
+        "Do not use any formatting. Just print out the code itself. This is the bug report:\n" +
+        bug_report +
+        "\nThis is the oracle template you should use:\n" +
+        llm_prompt_template +
+        "\nThe wrapper methods name should be the same as the original method name, while the original method should be called method_original"
+        "Do not print out the original method. Only print out the wrapper method."
+        "This is the method you should instrument:\n" +
+        java_doc + "\n" +
+        method_code +
+        "\nThis is one example how your instrumentation should look like:\n" +
+        llm_prompt_example_1 +
+        "\nThis is a second example of how your instrumentation should look like:\n" +
+        llm_prompt_example_3
     )
 
     oracle_code = llm_integration.call_llm(prompt).strip()
