@@ -9,7 +9,7 @@ from openai import OpenAI, OpenAIError
 from google import genai
 from google.api_core import exceptions as google_exceptions
 
-def call_llm(prompt):
+def call_llm(prompt, llm_key=None):
     # Read config file
     # TODO: Ideally the LLM config integrity should be checked when the EvoRepair config is read
     config = read_config()
@@ -18,7 +18,8 @@ def call_llm(prompt):
         return None
 
     # Determine which model to use via key
-    llm_key = values.llm_override if getattr(values, 'llm_override', None) is not None else config.get("default")
+    if llm_key is None:
+        llm_key = config.get("default")
     if not llm_key:
         emitter.error("No 'default' LLM specified in configuration and no llm_key provided.")
         return None
@@ -53,10 +54,9 @@ def call_llm(prompt):
     return result['text']
 
 def read_config():
-    load_dotenv()  # Load .env file to include API keys in the environment.
     if not Path(values.file_llm_config).is_file():
         emitter.error(f"LLM config file does not exist: {values.file_llm_config}")
-        return # TODO: Program should exit
+        return None # TODO: Program should exit
 
     try:
         with open(values.file_llm_config, "r") as f:
@@ -74,6 +74,7 @@ def read_config():
     return config
 
 def get_api_key(config):
+    load_dotenv()  # Load .env file to include API keys in the environment.
     api_key_env = config.get("api_key_env")
     if not api_key_env:
         emitter.warning("API key environment variable not specified in configuration.")

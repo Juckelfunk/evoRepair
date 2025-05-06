@@ -48,8 +48,7 @@ def extract_oracle(spectra):
 def select_location(spectra, bug_report):
     #### Retrieve top suspicious locations ####
 
-    NUM_CANDIDATES = 10
-    locations = spectra.get_top_suspicious_locations(NUM_CANDIDATES)
+    locations = spectra.get_top_suspicious_locations(values.num_suspicious_locations)
     if not locations:
         emitter.error("No suspicious locations found")
         return None
@@ -136,8 +135,8 @@ def select_location(spectra, bug_report):
         f"Output *only* the full method signature line of the single most likely method from the list above. "
         f"Do not include the opening curly brace '{{'. Do not include any other text, explanations, or formatting."
     )
-    selected_signature = llm_integration.call_llm(selection_prompt).strip()
-    selected_signature = re.sub(r"```.*?```", "", selected_signature, flags=re.DOTALL).strip()
+    selected_signature = llm_integration.call_llm(selection_prompt, values.llm_selection_override).strip()
+    selected_signature = clean_response(selected_signature)
 
     emitter.information(f"Selected signature: {selected_signature}")
 
@@ -167,24 +166,10 @@ def generate_oracle(method_code, java_doc, bug_report):
         llm_prompt_example_3
     )
 
-    oracle_code = llm_integration.call_llm(prompt).strip()
+    oracle_code = llm_integration.call_llm(prompt, values.llm_generation_override).strip()
 
     # Remove everything around the codeblock, if it exists
-    codeblock_pattern = re.compile(
-        r'^\s*```(?:java)?\s*\n'  # Open codeblock with ``` or ```java
-        r'([\s\S]*?)'  # Everythin in between
-        r'\n```',  # Close codeblock
-        flags=re.MULTILINE
-    )
-    m = codeblock_pattern.search(oracle_code)
-    if m:
-        return m.group(1).strip()
-
-    # When no code block is found, remove reasoning data, inside <think> block, if it exists
-    thinking_pattern = re.compile(r'<think>[\s\S]*?</think>', flags=re.IGNORECASE)
-    cleaned = thinking_pattern.sub('', oracle_code).strip()
-
-    return cleaned
+    return clean_response(oracle_code)
 
 # Spectra gives us the most suspicious line of code, but we need the whole method. This function provides it.
 def extract_method(location, code_lines, code_text):
@@ -304,3 +289,20 @@ def rename_method_in_text(method_code, original_name):
                 break
 
     return ''.join(lines)
+
+# Takes an LLM response, and removes everything around a code block (incl. the code block itself)
+def clean_response(response):
+    codeblock_pattern = re.compile(
+        r'^\s*```(?:java)?\s*\n'  # Open codeblock with ``` or ```java
+        r'([\s\S]*?)'  # Everythin in between
+        r'\n```',  # Close codeblock
+        flags=re.MULTILINE
+    )
+    m = codeblock_pattern.search(response)
+    if m:
+        return m.group(1).strip()
+
+    # When no code block is found, remove reasoning data, inside <think> block, if it exists
+    thinking_pattern = re.compile(r'<think>[\s\S]*?</think>', flags=re.IGNORECASE)
+    cleaned = thinking_pattern.sub('', response).strip()
+    return cleaned

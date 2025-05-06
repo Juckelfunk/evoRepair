@@ -21,7 +21,8 @@ class Configurations:
         "use-cache": False,
         "is-debug": False,
         "dry-run-patch": False,
-        "dry-run-test": False
+        "dry-run-test": False,
+        "num-suspicious-locations": 10
     }
 
     def read_arg_list(self, arg_list):
@@ -54,7 +55,9 @@ class Configurations:
         self.__runtime_config_values["no-change-localization"] = arg_list.no_change_localization
         self.__runtime_config_values["dir-output"] = arg_list.dir_output
         self.__runtime_config_values["no-test-filtered"] = arg_list.no_test_filtered
-        self.__runtime_config_values["llm_override"] = arg_list.llm
+        self.__runtime_config_values["llm_generation_override"] = arg_list.llm_generation
+        self.__runtime_config_values["llm_selection_override"] = arg_list.llm_selection
+        self.__runtime_config_values["num-suspicious-locations"] = arg_list.num_suspicious_locations
 
     def read_conf_file(self):
         emitter.normal("reading configuration values form configuration file")
@@ -119,6 +122,9 @@ class Configurations:
                               values.valid_population_size)
         emitter.configuration("do not use generated tests for fault localization", values.no_change_localization)
         emitter.configuration("seed of pseudorandom number generator", values.random_seed)
+        emitter.configuration("llm for oracle generation", values.llm_generation_override if values.llm_generation_override is not None else "default")
+        emitter.configuration("llm for method selection", values.llm_selection_override if values.llm_selection_override is not None else "default")
+        emitter.configuration("number of suspicious locations considered", values.num_suspicious_locations)
 
     def get_value(self, config_name):
         condition = config_name in self.__runtime_config_values and self.__runtime_config_values[config_name]
@@ -157,7 +163,10 @@ class Configurations:
         values.num_iterations = self.__runtime_config_values["num-iterations"]
         values.total_timeout = self.__runtime_config_values["total-timeout"]
         values.no_test_filtered = self.__runtime_config_values["no-test-filtered"]
-        values.llm_override = self.__runtime_config_values.get("llm_override")
+        values.llm_generation_override = self.__runtime_config_values.get("llm_generation_override")
+        values.llm_selection_override = self.__runtime_config_values.get("llm_selection_override")
+        values.num_suspicious_locations = self.__runtime_config_values.get("num-suspicious-locations")
+
         if values.total_timeout is not None:
             values.time_system_end = values.time_system_start + values.total_timeout
         else:

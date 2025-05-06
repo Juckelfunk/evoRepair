@@ -709,10 +709,18 @@ def parse_args():
                           help='do not filter test cases based on coverage during repair',
                           action='store_true',
                           default=False)
-    optional.add_argument('--llm',
-                          help='config for LLM (for test oracle generation); Choose from llm_config.yml',
+    optional.add_argument('--llm-generation',
+                          help='select LLM config oracle generation; Choose from llm_config.yml',
                           type=str,
                           default=None)
+    optional.add_argument('--llm-selection',
+                          help='select LLM config method extraction; Choose from llm_config.yml',
+                          type=str,
+                          default=None)
+    optional.add_argument('--num-suspicious-locations',
+                          help='how many suspicious locations to consider for fault localization',
+                          type=int,
+                          default=10) # TODO: Should the default value be stored in default config (configuration.py)?
     args = parser.parse_args()
 
     if 0 < args.num_iterations < args.passing_tests_partitions:

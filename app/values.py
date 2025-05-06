@@ -85,7 +85,9 @@ use_llm_extraction = True
 file_llm_config = _dir_root + "/llm_config.yml"
 file_bug_report = ""
 file_extracted_oracle = "" # LLM generated oracle will be saved in this file
-llm_override = None # If user chooses a model with --llm, it will be stored here
+llm_generation_override = None # Used when the user specifies an LLM config via --llm-generation
+llm_selection_override = None # Used when the user specifies an LLM config via --llm-selection
+num_suspicious_locations = 10 # Number of suspicious locations considered when extracting methods for selection
 
 llm_prompt_template = (
         "T wrapper_method(Parameters p ...) {\n"
