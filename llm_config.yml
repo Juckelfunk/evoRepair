@@ -6,6 +6,10 @@ llms:
     provider: ollama
     model: "phi4"
     api_base: "http://host.docker.internal:11434/"
+  phi4_r_docker:
+    provider: ollama
+    model: "phi4-reasoning"
+    api_base: "http://host.docker.internal:11434/"
   gemma3_docker:
     provider: ollama
     model: "gemma3:1b"
@@ -25,6 +29,10 @@ llms:
   phi4_local:
     provider: ollama
     model: "phi4"
+    api_base: "http://localhost:11434/"
+  phi4_r_local:
+    provider: ollama
+    model: "phi4-reasoning"
     api_base: "http://localhost:11434/"
   gemma3_local:
     provider: ollama
@@ -54,7 +62,7 @@ llms:
     provider: openai
     model: gpt-4o-mini
     #api_key_env: "OPENAI_API_KEY"
-  o3_mini:
+  o4_mini:
     provider: openai
-    model: o3-mini
+    model: o4-mini
     api_key_env: "OPENAI_API_KEY"

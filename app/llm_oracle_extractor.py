@@ -6,7 +6,9 @@ from pathlib import Path
 from app import values, spectra, emitter, llm_integration
 import javalang
 
-from app.values import llm_prompt_template, llm_prompt_example_1, llm_prompt_example_3
+from app.values import llm_prompt_template, llm_prompt_example_1, llm_prompt_example_3, llm_prompt_example_1_bug_report, \
+    llm_prompt_example_3_bug_report
+
 
 def extract_oracle(spectra):
     # Read bug report
@@ -149,22 +151,60 @@ def select_location(spectra, bug_report):
 
 # Creates a prompt and sends it to llm_integration
 def generate_oracle(method_code, java_doc, bug_report):
-    prompt = (
-        "Provide a test oracle from the following bug report. Do not give any further explanations. Do not print out any notes."
-        "Do not use any formatting. Just print out the code itself. This is the bug report:\n" +
-        bug_report +
-        "\nThis is the oracle template you should use:\n" +
-        llm_prompt_template +
-        "\nThe wrapper methods name should be the same as the original method name, while the original method should be called method_original"
-        "Do not print out the original method. Only print out the wrapper method."
-        "This is the method you should instrument:\n" +
-        java_doc + "\n" +
-        method_code +
-        "\nThis is one example how your instrumentation should look like:\n" +
-        llm_prompt_example_1 +
-        "\nThis is a second example of how your instrumentation should look like:\n" +
-        llm_prompt_example_3
-    )
+    prompt = f"""
+    ### Instructions  
+    1. Produce exactly one Java wrapper method.  
+    2. Name it **exactly** like the original (no `method_original` rename).  
+    3. Call the old code via `method_original(…)`.  
+    4. Insert your **boolean condition** and any **extra logic** (inside or outside the `if`) to detect the bug, then throw `RuntimeException("[Defects4J_BugReport_Violation]")`.  
+    5. Return **only** a java block—no prose, no comments, no imports.  
+
+    ---
+
+    ### Oracle template  
+    ```java
+    {llm_prompt_template}
+    ````
+
+    ---
+
+    ### Example 1 (bug → wrapper)
+
+    **Bug report:**
+    *{llm_prompt_example_1_bug_report}*
+
+    **Wrapper:**
+
+    ```java
+    {llm_prompt_example_1}
+    ```
+
+    ---
+
+    ### Example 2 (bug → wrapper)
+
+    **Bug report:**
+    *{llm_prompt_example_3_bug_report}*
+
+    **Wrapper:**
+
+    ```java
+    {llm_prompt_example_3}
+    ```
+
+    ---
+
+    ### Your task
+
+    **Bug report:**
+    {bug_report}
+
+    **Method to instrument (with javadoc):**
+    {java_doc}
+    {method_code}
+
+    Replace `<condition_for_buggy_behavior>` and add any surrounding logic needed, then output **one** fenced `java block` containing only your wrapper method.
+    """
 
     oracle_code = llm_integration.call_llm(prompt, values.llm_generation_override).strip()
 

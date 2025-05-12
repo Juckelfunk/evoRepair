@@ -104,6 +104,26 @@ llm_prompt_template = (
     )
 
 # Chart 1
+llm_prompt_example_1_bug_report = (
+    "Potential NPE in AbstractCategoryItemRender.getLegendItems()\n\n"
+    "Setting up a working copy of the current JFreeChart trunk in Eclipse I got a warning about a null pointer access in this bit of code from AbstractCategoryItemRender.java:\n\n"
+    "public LegendItemCollection getLegendItems() {\n"
+    "LegendItemCollection result = new LegendItemCollection();\n"
+    "if (this.plot == null) {\n"
+    "return result;\n"
+    "}\n"
+    "int index = this.plot.getIndexOf(this);\n"
+    "CategoryDataset dataset = this.plot.getDataset(index);\n"
+    "if (dataset != null) {\n"
+    "return result;\n"
+    "}\n"
+    "int seriesCount = dataset.getRowCount();\n"
+    "...\n"
+    "}\n\n"
+    "The warning is in the last code line where seriesCount is assigned. The variable dataset is guaranteed to be null in this location, I suppose that the check before that should actually read \"if (dataset == null)\", not \"if (dataset != null)\".\n\n"
+    "This is trunk as of 2010-02-08.\n"
+)
+
 llm_prompt_example_1 = (
     "public LegendItemCollection getLegendItems() {\n"
     "  if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
@@ -136,6 +156,17 @@ llm_prompt_example_2 = (
 )
 
 # Math 53
+
+llm_prompt_example_3_bug_report = (
+    "Complex Add and Subtract handle NaN arguments differently, but javadoc contracts are the same\n\n"
+    "For both Complex add and subtract, the javadoc states thatn\n\n"
+    "     * If either this or <code>rhs</code> has a NaN value in either part,\n"
+    "     * {@link #NaN} is returned; otherwise Inifinite and NaN values are\n"
+    "     * returned in the parts of the result according to the rules for\n"
+    "     * {@link java.lang.Double} arithmeticn\n\n"
+    "Subtract includes an isNaN test and returns Complex.NaN if either complex argument isNaN; but add omits this test. The test should be added to the add implementation (actually restored, since this looks like a code merge problem going back to 1.1).\n"
+)
+
 llm_prompt_example_3 = (
     "public Complex add(Complex rhs) throws NullArgumentException {\n"
     "    if (Boolean.parseBoolean(System.getProperty(\"defects4j.instrumentation.enabled\"))) {\n"
