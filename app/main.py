@@ -720,7 +720,7 @@ def parse_args():
     optional.add_argument('--num-suspicious-locations',
                           help='how many suspicious locations to consider for fault localization',
                           type=int,
-                          default=10) # TODO: Should the default value be stored in default config (configuration.py)?
+                          default=25)
     args = parser.parse_args()
 
     if 0 < args.num_iterations < args.passing_tests_partitions:

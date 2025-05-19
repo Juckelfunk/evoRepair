@@ -49,6 +49,10 @@ def call_llm(prompt, llm_key=None):
         emitter.error(f"Unsupported LLM provider: '{provider}' in configuration '{llm_key}'.")
         return None
 
+    if result is None:
+        emitter.error("LLM call failed: result is None")
+        return None
+
     emitter.information(f"Input tokens: {result['input_tokens']} Output tokens: {result['output_tokens']}")
     emitter.debug(f"LLM response:\n{result['text']}")
     return result['text']
@@ -206,12 +210,26 @@ def _call_openai(prompt, config):
         emitter.information(f"Sending prompt to OpenAI model: {model_name}")
 
         response = client.responses.create(model=model_name, input=prompt)
-        print(response)
+
+        # Depending on whether we use a reasoning model or not, the response is structured differently
+        if hasattr(response, 'output_text') and response.output_text is not None:
+            text = response.output_text
+        else:
+            # Stitch together response parts
+            parts = []
+            for item in getattr(response, 'output', []):
+                if hasattr(item, 'content'):
+                    parts.append(item.content)
+                elif hasattr(item, 'text'):
+                    parts.append(item.text)
+                else:
+                    parts.append(str(item))
+            text = "".join(parts)
 
         return {
-            "text": response.output[0].content[0].text,
-            "input_tokens": response.usage.input_tokens,
-            "output_tokens": response.usage.output_tokens
+            "text": text,
+            "input_tokens": getattr(response.usage, 'input_tokens', None),
+            "output_tokens": getattr(response.usage, 'output_tokens', None)
         }
 
     except OpenAIError as e:

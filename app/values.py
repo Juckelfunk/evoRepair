@@ -8,6 +8,7 @@ depth = 3
 tag_id = ""
 dir_exp = ""
 dir_src = None
+dir_test_src = None
 dir_build = None
 cmd_build = None
 cmd_clean = None
@@ -87,7 +88,7 @@ file_bug_report = ""
 file_extracted_oracle = "" # LLM generated oracle will be saved in this file
 llm_generation_override = None # Used when the user specifies an LLM config via --llm-generation
 llm_selection_override = None # Used when the user specifies an LLM config via --llm-selection
-num_suspicious_locations = 10 # Number of suspicious locations considered when extracting methods for selection
+num_suspicious_locations = 25 # Number of suspicious locations considered when extracting methods for selection
 
 llm_prompt_template = (
         "T wrapper_method(Parameters p ...) {\n"
@@ -156,7 +157,6 @@ llm_prompt_example_2 = (
 )
 
 # Math 53
-
 llm_prompt_example_3_bug_report = (
     "Complex Add and Subtract handle NaN arguments differently, but javadoc contracts are the same\n\n"
     "For both Complex add and subtract, the javadoc states thatn\n\n"

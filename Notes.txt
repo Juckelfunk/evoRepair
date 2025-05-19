@@ -1,6 +1,0 @@
-Copy oracles from subject output dir to current dir
-for d in */; do [ -f "$d/oracle.txt" ] && cp "$d/oracle.txt" "./$(basename "$d" | awk -F'_' '{print $1"_"$2}')_oracle.txt"; done
-
-Execute EvoRepair for some subjects
-for i in d4j-subjects/{chart,lang,time}*_instr/config.json; do echo "$i"; done
-

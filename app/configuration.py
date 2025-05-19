@@ -22,7 +22,7 @@ class Configurations:
         "is-debug": False,
         "dry-run-patch": False,
         "dry-run-test": False,
-        "num-suspicious-locations": 10
+        "num-suspicious-locations": 25
     }
 
     def read_arg_list(self, arg_list):
@@ -77,6 +77,7 @@ class Configurations:
             self.__runtime_config_values["subject"] = project_info["name"]
             self.__runtime_config_values["tag-id"] = project_info["tag"]
             self.__runtime_config_values["src-dir"] = project_info["source-directory"]
+            self.__runtime_config_values["test-src-dir"] = project_info["test-source-directory"]
             self.__runtime_config_values["test-dir"] = project_info["test-directory"]
             self.__runtime_config_values["deps-dir"] = project_info["deps-directory"]
             self.__runtime_config_values["classes-dir"] = project_info["class-directory"]
@@ -137,6 +138,7 @@ class Configurations:
         values.tag_id = self.__runtime_config_values["tag-id"]
         values.dir_exp = self.__runtime_config_values["work-dir"]
         values.dir_src = self.__runtime_config_values["src-dir"]
+        values.dir_test_src = self.__runtime_config_values["test-src-dir"]
         if not os.path.isdir(values.dir_src):
             values.dir_src = values.dir_exp + "/" + values.dir_src
 

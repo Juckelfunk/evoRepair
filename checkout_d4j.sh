@@ -16,7 +16,7 @@ for identifier in "${identifiers[@]}"; do
         defects4j checkout -p "$identifier" -v "${bug_id}b" -w "./d4j-subjects_no_instr/${identifier}_${bug_id}_no_instr"
 
         # Copy config.json from instrumented subject to not-instrumented subject
-        src="./d4j-subjects/${identifier,,}_${bug_id}_instr/config.json"
+        src="./d4j-subjects_no_instr/configs/${identifier}_${bug_id}_config.json"
         dest="./d4j-subjects_no_instr/${identifier}_${bug_id}_no_instr/config.json"
         echo "Copy $src to $dest"
         cp "$src" "$dest"

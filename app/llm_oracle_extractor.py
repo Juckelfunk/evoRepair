@@ -11,7 +11,8 @@ from app.values import llm_prompt_template, llm_prompt_example_1, llm_prompt_exa
 
 
 def extract_oracle(spectra):
-    # Read bug report
+    ### Read bug report ###
+
     if Path(values.file_bug_report).is_file():
         emitter.debug(f"Found bug report at: {values.file_bug_report}")
         with open(values.file_bug_report, 'r') as file:
@@ -20,8 +21,59 @@ def extract_oracle(spectra):
         emitter.error(f"Bug report file not found at expected location: {values.file_bug_report}")
         return None
 
+
+    ### Collect failing tests and their source ###
+
+    failing_tests = [t for t, r in spectra.test_results.items() if r == "FAIL"]
+    failing_tests_info = []
+
+    test_dir = values.dir_exp + "/" + values.dir_test_src
+    emitter.information(f"Looking for test source in {test_dir}")
+
+    for test in failing_tests:
+        try:
+            class_name, method_name = test.split('#')
+        except ValueError:
+            emitter.error(f"Unrecognized test name format: {test}")
+            continue
+
+        # Construct test source file path under project/tests
+        rel_path = Path(*class_name.split('.')).with_suffix('.java')
+        test_file = test_dir / rel_path
+        if not test_file.is_file():
+            emitter.warning(f"Test source not found for {test}: expected at {test_file}")
+            continue
+
+        # Read and extract the specific method snippet
+        code_lines = test_file.read_text(encoding='utf-8').splitlines(keepends=True)
+        code_text = ''.join(code_lines)
+        try:
+            tree = javalang.parse.parse(code_text)
+            for _, m in tree.filter(javalang.tree.MethodDeclaration):
+                if m.name == method_name and m.position:
+                    start, end = get_method_start_end(code_text, m.position.line)
+                    snippet = ''.join(code_lines[start-1:end])
+                    failing_tests_info.append((test, snippet))
+                    break
+        except Exception as ex:
+            emitter.warning(f"Failed to parse test {test} in {test_file}: {ex}")
+
+    # Log all failing tests and their source
+    if failing_tests_info:
+        for test, snippet in failing_tests_info:
+            emitter.information(f"--- Failing Test: {test} ---")
+            emitter.information(snippet)
+    else:
+        emitter.warning("No failing tests source to include")
+
+    # Build context for failing tests, this will be included in LLM prompts
+    tests_context = "\n\n".join(
+        f"{i + 1}. {test}\n{snippet.strip()}"
+        for i, (test, snippet) in enumerate(failing_tests_info)
+    )
+
     # Let LLM select location
-    chosen = select_location(spectra, bug_report)
+    chosen = select_location(spectra, bug_report, tests_context)
 
     # Prepare chosen method for oracle generation
     code_lines = chosen["code_lines"]
@@ -32,7 +84,7 @@ def extract_oracle(spectra):
     m_end = chosen["m_end"]
 
     #### Generate oracle ####
-    oracle = generate_oracle(method_code, java_doc, bug_report)
+    oracle = generate_oracle(method_code, java_doc, bug_report, tests_context)
     if oracle is None:
         emitter.error("LLM interactor returned None as oracle")
         return None
@@ -47,7 +99,7 @@ def extract_oracle(spectra):
     return None
 
 # Get top suspicious locations from spectra and let LLM choose the correct method to instrument
-def select_location(spectra, bug_report):
+def select_location(spectra, bug_report, tests_context):
     #### Retrieve top suspicious locations ####
 
     locations = spectra.get_top_suspicious_locations(values.num_suspicious_locations)
@@ -122,26 +174,30 @@ def select_location(spectra, bug_report):
 
     # Contains all methods JavaDoc and implementation
     method_selection = [
-        f"{cand['index']}. {cand['java_doc']}\n{cand['signature']}\n\n"
+        f"{cand['index']}. {cand['java_doc']}\n{cand['method_code']}"
         for cand in candidates
     ]
 
     selection_prompt = (
-        f"Given the following bug report and suspicious code locations, select the single most likely "
+        f"Given the following bug report and suspicious code locations and failing test(s), select the single most likely "
         f"method signature from the candidate list that needs to be instrumented or modified to fix the bug.\n\n"
         f"Bug Report:\n------\n{bug_report}\n------\n\n"
-        f"Top {len(locations)} Suspicious Locations:\n------\n{suspicious_locations_context}\n------\n\n"
-        f"Candidate Methods (Signature and JavaDoc):\n------\n"
+        f"Failing Tests:\n------\n{tests_context}\n------\n\n"
+        # f"Top {len(locations)} Suspicious Locations:\n------\n{suspicious_locations_context}\n------\n\n"
+        f"Candidate Methods:\n------\n"
         f"{''.join(method_selection)}"
         f"------\n\n"
         f"Output *only* the full method signature line of the single most likely method from the list above. "
         f"Do not include the opening curly brace '{{'. Do not include any other text, explanations, or formatting."
     )
+    emitter.information(selection_prompt)
     selected_signature = llm_integration.call_llm(selection_prompt, values.llm_selection_override).strip()
     selected_signature = clean_response(selected_signature)
 
     emitter.information(f"Selected signature: {selected_signature}")
 
+    # TODO: Somtimes LLM response contains { at the end. This should be cut off for more robust selection
+    # TODO: Multiple tries with fallback to top sus location
     chosen = next((c for c in candidates if c["signature"] == selected_signature), None)
     if not chosen:
         emitter.error(f"Selected signature not matched: {selected_signature}")
@@ -150,7 +206,7 @@ def select_location(spectra, bug_report):
     return chosen
 
 # Creates a prompt and sends it to llm_integration
-def generate_oracle(method_code, java_doc, bug_report):
+def generate_oracle(method_code, java_doc, bug_report, tests_context):
     prompt = f"""
     ### Instructions  
     1. Produce exactly one Java wrapper method.  
@@ -198,6 +254,9 @@ def generate_oracle(method_code, java_doc, bug_report):
 
     **Bug report:**
     {bug_report}
+    
+    **Failing Test(s)**
+    {tests_context}
 
     **Method to instrument (with javadoc):**
     {java_doc}
@@ -205,6 +264,8 @@ def generate_oracle(method_code, java_doc, bug_report):
 
     Replace `<condition_for_buggy_behavior>` and add any surrounding logic needed, then output **one** fenced `java block` containing only your wrapper method.
     """
+
+    emitter.information(prompt)
 
     oracle_code = llm_integration.call_llm(prompt, values.llm_generation_override).strip()
 
