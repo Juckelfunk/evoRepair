@@ -190,18 +190,22 @@ def select_location(spectra, bug_report, tests_context):
         f"Output *only* the full method signature line of the single most likely method from the list above. "
         f"Do not include the opening curly brace '{{'. Do not include any other text, explanations, or formatting."
     )
-    emitter.information(selection_prompt)
-    selected_signature = llm_integration.call_llm(selection_prompt, values.llm_selection_override).strip()
-    selected_signature = clean_response(selected_signature)
 
-    emitter.information(f"Selected signature: {selected_signature}")
+    chosen = None
+    for attempt in range(1, 4):
+        selected_signature = llm_integration.call_llm(selection_prompt, values.llm_selection_override).strip()
+        selected_signature = clean_response(selected_signature)
+        selected_signature = re.sub(r"\s*\{\s*$", "", selected_signature).strip() # Remove {
 
-    # TODO: Somtimes LLM response contains { at the end. This should be cut off for more robust selection
-    # TODO: Multiple tries with fallback to top sus location
-    chosen = next((c for c in candidates if c["signature"] == selected_signature), None)
+        emitter.information(f"Selected signature: {selected_signature}")
+        chosen = next((c for c in candidates if c["signature"] == selected_signature), None)
+        if not chosen:
+            emitter.warning(f"Selected signature not matched on attempt {attempt}: {selected_signature}")
+            continue
+
     if not chosen:
-        emitter.error(f"Selected signature not matched: {selected_signature}")
-        return None
+        emitter.warning(f"Selected signature not matched: using most suspicious location as fallback")
+        return candidates[0]
 
     return chosen
 
@@ -264,8 +268,6 @@ def generate_oracle(method_code, java_doc, bug_report, tests_context):
 
     Replace `<condition_for_buggy_behavior>` and add any surrounding logic needed, then output **one** fenced `java block` containing only your wrapper method.
     """
-
-    emitter.information(prompt)
 
     oracle_code = llm_integration.call_llm(prompt, values.llm_generation_override).strip()
 
