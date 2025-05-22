@@ -3,6 +3,7 @@
     "name": "time_14_buggy",
     "tag": "instr",
     "source-directory": "src/main/java",
+    "test-source-directory": "src/test/java",
     "test-directory": "build/tests",
     "deps-directory": "target/dependency",
     "class-directory": "build/classes"

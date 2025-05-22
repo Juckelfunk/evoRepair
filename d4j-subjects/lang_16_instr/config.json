@@ -3,6 +3,7 @@
     "name": "lang_16_buggy",
     "tag": "instr",
     "source-directory": "src/main/java",
+    "test-source-directory": "src/test/java",
     "test-directory": "target/tests",
     "deps-directory": "target/dependency",
     "class-directory": "target/classes"

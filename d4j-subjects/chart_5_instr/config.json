@@ -3,6 +3,7 @@
     "name": "chart_5_buggy",
     "tag": "instr",
     "source-directory": "source",
+    "test-source-directory": "tests",
     "test-directory": "build-tests",
     "deps-directory": "lib",
     "class-directory": "build"

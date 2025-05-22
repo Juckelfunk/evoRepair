@@ -3,6 +3,7 @@
     "name": "math_73_buggy",
     "tag": "instr",
     "source-directory": "src/main/java",
+    "test-source-directory": "src/test/java",
     "test-directory": "target/test-classes",
     "deps-directory": "target/dependency",
     "class-directory": "target/classes"
