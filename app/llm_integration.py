@@ -17,7 +17,7 @@ def call_llm(prompt, llm_key=None):
         emitter.error("Failed to load LLM configuration.")
         return None
 
-    # Determine which model to use via key
+    # Determine which model to use via the key
     if llm_key is None:
         llm_key = config.get("default")
     if not llm_key:

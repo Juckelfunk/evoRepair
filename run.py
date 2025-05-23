@@ -53,7 +53,7 @@ def main(*args):
 
     print(f"{len(task_list)} tasks in total: {' '.join([f'{subject},{seed}' for subject, seed in task_list])}")
 
-    n_parallel = 1
+    n_parallel = 4
     
     popen_for_subject = {}
     while task_list or popen_for_subject:

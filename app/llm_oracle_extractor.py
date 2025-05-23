@@ -3,11 +3,11 @@ import os
 import re
 from pathlib import Path
 
-from app import values, spectra, emitter, llm_integration
+from app import values, emitter, llm_integration
 import javalang
 
-from app.values import llm_prompt_template, llm_prompt_example_1, llm_prompt_example_3, llm_prompt_example_1_bug_report, \
-    llm_prompt_example_3_bug_report
+from app.values import llm_prompt_template, prompt_example_1, prompt_example_2, prompt_example_1_bug_report, \
+    prompt_example_2_bug_report
 
 
 def extract_oracle(spectra):
@@ -37,7 +37,7 @@ def extract_oracle(spectra):
             emitter.error(f"Unrecognized test name format: {test}")
             continue
 
-        # Construct test source file path under project/tests
+        # Construct a test source file path under project/tests
         rel_path = Path(*class_name.split('.')).with_suffix('.java')
         test_file = test_dir / rel_path
         if not test_file.is_file():
@@ -66,7 +66,7 @@ def extract_oracle(spectra):
     else:
         emitter.warning("No failing tests source to include")
 
-    # Build context for failing tests, this will be included in LLM prompts
+    # Build context for failing tests. This will be included in LLM prompts
     tests_context = "\n\n".join(
         f"{i + 1}. {test}\n{snippet.strip()}"
         for i, (test, snippet) in enumerate(failing_tests_info)
@@ -75,7 +75,7 @@ def extract_oracle(spectra):
     # Let LLM select location
     chosen = select_location(spectra, bug_report, tests_context)
 
-    # Prepare chosen method for oracle generation
+    # Prepare the chosen method for oracle generation
     code_lines = chosen["code_lines"]
     java_doc = chosen["java_doc"]
     method_name = chosen["method_name"]
@@ -111,10 +111,10 @@ def select_location(spectra, bug_report, tests_context):
         emitter.debug(f"{loc}")
 
     # Build context for selection prompt
-    suspicious_locations_context = "\n".join(
-        f"{i + 1}. {loc.class_name}:{loc.line_number}"
-        for i, loc in enumerate(locations)
-    )
+    # suspicious_locations_context = "\n".join(
+    #     f"{i + 1}. {loc.class_name}:{loc.line_number}"
+    #     for i, loc in enumerate(locations)
+    # )
 
     candidates = []
     # Gather unique method metadata for each candidate
@@ -143,7 +143,7 @@ def select_location(spectra, bug_report, tests_context):
             continue
         java_doc, method_name, method_code, m_start, m_end = extract
 
-        # Build complete signature up to the opening brace
+        # Build the complete signature up to the opening brace
         sig_lines = []
         for line in method_code.splitlines():
             if '{' in line:
@@ -172,7 +172,7 @@ def select_location(spectra, bug_report, tests_context):
         emitter.error("No valid candidate methods extracted after filtering duplicates")
         return None
 
-    # Contains all methods JavaDoc and implementation
+    # Contains all methods' Javadoc and implementation
     method_selection = [
         f"{cand['index']}. {cand['java_doc']}\n{cand['method_code']}"
         for cand in candidates
@@ -231,12 +231,12 @@ def generate_oracle(method_code, java_doc, bug_report, tests_context):
     ### Example 1 (bug → wrapper)
 
     **Bug report:**
-    *{llm_prompt_example_1_bug_report}*
+    *{prompt_example_1_bug_report}*
 
     **Wrapper:**
 
     ```java
-    {llm_prompt_example_1}
+    {prompt_example_1}
     ```
 
     ---
@@ -244,12 +244,12 @@ def generate_oracle(method_code, java_doc, bug_report, tests_context):
     ### Example 2 (bug → wrapper)
 
     **Bug report:**
-    *{llm_prompt_example_3_bug_report}*
+    *{prompt_example_2_bug_report}*
 
     **Wrapper:**
 
     ```java
-    {llm_prompt_example_3}
+    {prompt_example_2}
     ```
 
     ---
@@ -271,7 +271,7 @@ def generate_oracle(method_code, java_doc, bug_report, tests_context):
 
     oracle_code = llm_integration.call_llm(prompt, values.llm_generation_override).strip()
 
-    # Remove everything around the codeblock, if it exists
+    # Remove everything around the code block if it exists
     return clean_response(oracle_code)
 
 # Spectra gives us the most suspicious line of code, but we need the whole method. This function provides it.
@@ -279,7 +279,7 @@ def extract_method(location, code_lines, code_text):
     tree = javalang.parse.parse(code_text)
 
     for _, method_node in tree.filter(javalang.tree.MethodDeclaration):
-        # Node position is method header
+        # Node position is the method header
         header_start_line = method_node.position.line if method_node.position else None
         if header_start_line is None:
             emitter.warning(f"header_start_line is None")
@@ -290,7 +290,7 @@ def extract_method(location, code_lines, code_text):
         extracted_lines = code_lines[m_start - 1: m_end]
         method_code = "".join(extracted_lines)
 
-        # Retrieve the JavaDoc from the AST, if available
+        # Retrieve the Javadoc from the AST, if available
         java_doc = getattr(method_node, "documentation", "")
         if java_doc and not java_doc.startswith("/**"):
             java_doc = f"/**\n{java_doc}\n*/\n"
@@ -326,7 +326,7 @@ def get_method_start_end(code_text, header_start_line):
         elif token.value == "}":
             brace_count -= 1
 
-        if brace_count == 0: # If counter hits 0 again, the method is closed
+        if brace_count == 0: # If the counter hits 0 again, the method is closed
             method_token_end = token
             break
     if method_token_end is None: # Fallback: use the last token if no balance is found. TODO: Maybe the program should exit here?
@@ -388,12 +388,11 @@ def rename_method_in_text(method_code, original_name):
             if '(' in line and original_name in line:
                 new_line = re.sub(r'\b' + re.escape(original_name) + r'\b', original_name + "_original", line, count=1)
                 lines[i] = new_line
-                replaced = True
                 break
 
     return ''.join(lines)
 
-# Takes an LLM response, and removes everything around a code block (incl. the code block itself)
+# Takes an LLM response and removes everything around a code block (incl. the code block itself)
 def clean_response(response):
     codeblock_pattern = re.compile(
         r'^\s*```(?:java)?\s*\n'  # Open codeblock with ``` or ```java
@@ -403,9 +402,14 @@ def clean_response(response):
     )
     m = codeblock_pattern.search(response)
     if m:
-        return m.group(1).strip()
+        cleaned = m.group(1).strip()
+    else:
+        # If no code block is found, remove any <think>...</think> sections
+        thinking_pattern = re.compile(r'<think>[\s\S]*?</think>', flags=re.IGNORECASE)
+        cleaned = thinking_pattern.sub('', response).strip()
 
-    # When no code block is found, remove reasoning data, inside <think> block, if it exists
-    thinking_pattern = re.compile(r'<think>[\s\S]*?</think>', flags=re.IGNORECASE)
-    cleaned = thinking_pattern.sub('', response).strip()
+    # Remove a single pair of outer braces if the code is wrapped in { ... }
+    if cleaned.startswith('{') and cleaned.endswith('}'):
+        cleaned = cleaned[1:-1].strip()
+
     return cleaned
