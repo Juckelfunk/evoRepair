@@ -23,7 +23,6 @@ import random
 import json
 from app.test_suite import USER_TEST_GENERATION
 from app.spectra import Spectra
-from app.values import use_llm_extraction
 
 
 class Interval:
@@ -310,14 +309,14 @@ def run(arg_list):
     # Oracle Extraction
     ##########################################
 
-    if use_llm_extraction:
-        emitter.sub_sub_title("Extracting Oracles with LLM")
+    if values.oracle_extraction:
         phase = "LLM Oracle Extraction"
+        emitter.sub_title(phase)
         timer.start_phase(phase)
-
         llm_oracle_extractor.extract_oracle(spectra)
-        timer.pause_all()
-        return
+        timer.pause_phase(phase)
+        emitter.normal(f"\n\t\tUsed {timer.last_interval_duration(phase, unit='m'):.2f} minutes")
+        # return
 
     # Run oracle location finder
     oracle_extractor.extract_oracle_locations()
@@ -709,6 +708,10 @@ def parse_args():
                           help='do not filter test cases based on coverage during repair',
                           action='store_true',
                           default=False)
+    optional.add_argument('--oracle-extraction',
+                          help='Use LLM-based oracle extraction; Otherwise EvoRepair requires already existing instrumentation',
+                          action='store_true',
+                          default=False)
     optional.add_argument('--llm-generation',
                           help='select LLM config oracle generation; Choose from llm_config.yml',
                           type=str,
@@ -717,6 +720,10 @@ def parse_args():
                           help='select LLM config method extraction; Choose from llm_config.yml',
                           type=str,
                           default=None)
+    optional.add_argument('--selection-retries',
+                          help='how many times the LLM is (re)prompted for method selection before using fallback',
+                          type=int,
+                          default=3)
     optional.add_argument('--num-suspicious-locations',
                           help='how many suspicious locations to consider for fault localization',
                           type=int,

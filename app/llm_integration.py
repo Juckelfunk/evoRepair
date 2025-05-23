@@ -23,7 +23,7 @@ def call_llm(prompt, llm_key=None):
     if not llm_key:
         emitter.error("No 'default' LLM specified in configuration and no llm_key provided.")
         return None
-    emitter.information(f"LLM configuration: '{llm_key}'")
+    emitter.normal(f"LLM configuration: '{llm_key}'")
 
     # Get configuration for selected LLM
     llm_configs = config.get("llms", {})
@@ -53,7 +53,7 @@ def call_llm(prompt, llm_key=None):
         emitter.error("LLM call failed: result is None")
         return None
 
-    emitter.information(f"Input tokens: {result['input_tokens']} Output tokens: {result['output_tokens']}")
+    emitter.normal(f"Input tokens: {result['input_tokens']} Output tokens: {result['output_tokens']}")
     emitter.debug(f"LLM response:\n{result['text']}")
     return result['text']
 
@@ -111,7 +111,7 @@ def _call_ollama(prompt, config):
     }
 
     try:
-        emitter.information(f"Calling Ollama model {model_name} at {url}")
+        emitter.debug(f"Calling Ollama model {model_name} at {url}")
         response = requests.post(url, data=json.dumps(payload))
         response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
 
@@ -165,7 +165,7 @@ def _call_gemini(prompt, config):
 
     try:
         client = genai.Client(api_key=api_key)
-        emitter.information(f"Sending prompt to Google Gemini model: {model_name}")
+        emitter.debug(f"Calling Google Gemini model: {model_name}")
 
         response = client.models.generate_content(model=model_name, contents=prompt)
 
@@ -207,7 +207,7 @@ def _call_openai(prompt, config):
 
     try:
         client = OpenAI()
-        emitter.information(f"Sending prompt to OpenAI model: {model_name}")
+        emitter.debug(f"Calling OpenAI model: {model_name}")
 
         response = client.responses.create(model=model_name, input=prompt)
 

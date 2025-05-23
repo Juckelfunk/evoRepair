@@ -11,10 +11,11 @@ from app.values import llm_prompt_template, prompt_example_1, prompt_example_2, 
 
 
 def extract_oracle(spectra):
+
     ### Read bug report ###
 
     if Path(values.file_bug_report).is_file():
-        emitter.debug(f"Found bug report at: {values.file_bug_report}")
+        emitter.normal(f"Found bug report at: {values.file_bug_report}")
         with open(values.file_bug_report, 'r') as file:
             bug_report = file.read()
     else:
@@ -24,12 +25,60 @@ def extract_oracle(spectra):
 
     ### Collect failing tests and their source ###
 
+    emitter.normal("Collecting failing tests and their source")
+    failing_tests_info = extract_failing_test_source(spectra)
+
+    # Build context for failing tests. This will be included in LLM prompts
+    tests_context = "\n\n".join(
+        f"{i + 1}. {test}\n{snippet.strip()}"
+        for i, (test, snippet) in enumerate(failing_tests_info)
+    )
+
+
+    ### Let LLM select location ###
+
+    emitter.normal("Let LLM select location")
+    chosen = select_location(spectra, bug_report, tests_context)
+
+    # Prepare the chosen method for oracle generation
+    code_lines = chosen["code_lines"]
+    java_doc = chosen["java_doc"]
+    method_name = chosen["method_name"]
+    method_code = chosen["method_code"]
+    m_start = chosen["m_start"]
+    m_end = chosen["m_end"]
+
+    #### Generate oracle ####
+    emitter.normal("Generating oracle")
+    oracle = generate_oracle(method_code, java_doc, bug_report, tests_context)
+    if oracle is None:
+        emitter.error("LLM interactor returned None as oracle")
+        return None
+    with open(values.file_extracted_oracle, "w", encoding="utf-8") as f:
+        f.write(oracle)
+
+
+    #### Instrument method ####
+
+    emitter.normal("Instrumenting source code")
+    new_code_text = inject_oracle(code_lines, oracle, method_name, method_code, m_start, m_end)
+
+    # Save copy instrumented file for easy debugging
+    with open(values.dir_output / "instr.java", "w", encoding="utf-8") as f:
+        f.write(new_code_text)
+
+    # Replace the original source file with the newly instrumented source
+    with open(values.dir_output / "instr.java", "w", encoding="utf-8") as f:
+        f.write(new_code_text)
+
+    return None
+
+# Collects failing tests and extracts their source
+def extract_failing_test_source(spectra):
     failing_tests = [t for t, r in spectra.test_results.items() if r == "FAIL"]
     failing_tests_info = []
-
     test_dir = values.dir_exp + "/" + values.dir_test_src
-    emitter.information(f"Looking for test source in {test_dir}")
-
+    emitter.normal(f"Looking for test source in {test_dir}")
     for test in failing_tests:
         try:
             class_name, method_name = test.split('#')
@@ -52,7 +101,7 @@ def extract_oracle(spectra):
             for _, m in tree.filter(javalang.tree.MethodDeclaration):
                 if m.name == method_name and m.position:
                     start, end = get_method_start_end(code_text, m.position.line)
-                    snippet = ''.join(code_lines[start-1:end])
+                    snippet = ''.join(code_lines[start - 1:end])
                     failing_tests_info.append((test, snippet))
                     break
         except Exception as ex:
@@ -60,43 +109,13 @@ def extract_oracle(spectra):
 
     # Log all failing tests and their source
     if failing_tests_info:
+        emitter.information(f"Found {len(failing_tests_info)} failing tests and their source")
         for test, snippet in failing_tests_info:
-            emitter.information(f"--- Failing Test: {test} ---")
-            emitter.information(snippet)
+            emitter.debug(f"--- Failing Test: {test} ---")
+            emitter.debug(snippet)
     else:
         emitter.warning("No failing tests source to include")
-
-    # Build context for failing tests. This will be included in LLM prompts
-    tests_context = "\n\n".join(
-        f"{i + 1}. {test}\n{snippet.strip()}"
-        for i, (test, snippet) in enumerate(failing_tests_info)
-    )
-
-    # Let LLM select location
-    chosen = select_location(spectra, bug_report, tests_context)
-
-    # Prepare the chosen method for oracle generation
-    code_lines = chosen["code_lines"]
-    java_doc = chosen["java_doc"]
-    method_name = chosen["method_name"]
-    method_code = chosen["method_code"]
-    m_start = chosen["m_start"]
-    m_end = chosen["m_end"]
-
-    #### Generate oracle ####
-    oracle = generate_oracle(method_code, java_doc, bug_report, tests_context)
-    if oracle is None:
-        emitter.error("LLM interactor returned None as oracle")
-        return None
-    with open(values.file_extracted_oracle, "w", encoding="utf-8") as f:
-        f.write(oracle)
-
-    #### Instrument method ####
-    new_code_text = inject_oracle(code_lines, oracle, method_name, method_code, m_start, m_end)
-    with open(values.dir_output / "instr.java", "w", encoding="utf-8") as f:
-        f.write(new_code_text)
-
-    return None
+    return failing_tests_info
 
 # Get top suspicious locations from spectra and let LLM choose the correct method to instrument
 def select_location(spectra, bug_report, tests_context):
@@ -106,7 +125,7 @@ def select_location(spectra, bug_report, tests_context):
     if not locations:
         emitter.error("No suspicious locations found")
         return None
-    emitter.information(f"Retrieved top {len(locations)} suspicious locations:")
+    emitter.debug(f"Retrieved top {len(locations)} suspicious locations:")
     for loc in locations:
         emitter.debug(f"{loc}")
 
@@ -192,16 +211,18 @@ def select_location(spectra, bug_report, tests_context):
     )
 
     chosen = None
-    for attempt in range(1, 4):
+    for attempt in range(1, values.llm_selection_retries + 1):
         selected_signature = llm_integration.call_llm(selection_prompt, values.llm_selection_override).strip()
         selected_signature = clean_response(selected_signature)
         selected_signature = re.sub(r"\s*\{\s*$", "", selected_signature).strip() # Remove {
 
-        emitter.information(f"Selected signature: {selected_signature}")
         chosen = next((c for c in candidates if c["signature"] == selected_signature), None)
         if not chosen:
             emitter.warning(f"Selected signature not matched on attempt {attempt}: {selected_signature}")
             continue
+        else:
+            emitter.information(f"Selected signature: {selected_signature}")
+            break
 
     if not chosen:
         emitter.warning(f"Selected signature not matched: using most suspicious location as fallback")
@@ -335,6 +356,7 @@ def get_method_start_end(code_text, header_start_line):
 
     return m_start, m_end
 
+# Rename original method & inject wrapper method into code
 def inject_oracle(code_lines, oracle_code, method_name, method_code, m_start, m_end):
     original_method_code = rename_method_in_text(method_code, method_name)
 

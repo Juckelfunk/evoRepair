@@ -22,6 +22,7 @@ class Configurations:
         "is-debug": False,
         "dry-run-patch": False,
         "dry-run-test": False,
+        "selection-retries": 3,
         "num-suspicious-locations": 25
     }
 
@@ -55,8 +56,10 @@ class Configurations:
         self.__runtime_config_values["no-change-localization"] = arg_list.no_change_localization
         self.__runtime_config_values["dir-output"] = arg_list.dir_output
         self.__runtime_config_values["no-test-filtered"] = arg_list.no_test_filtered
+        self.__runtime_config_values["oracle-extraction"] = arg_list.oracle_extraction
         self.__runtime_config_values["llm_generation_override"] = arg_list.llm_generation
         self.__runtime_config_values["llm_selection_override"] = arg_list.llm_selection
+        self.__runtime_config_values["selection-retries"] = arg_list.selection_retries
         self.__runtime_config_values["num-suspicious-locations"] = arg_list.num_suspicious_locations
 
     def read_conf_file(self):
@@ -123,8 +126,10 @@ class Configurations:
                               values.valid_population_size)
         emitter.configuration("do not use generated tests for fault localization", values.no_change_localization)
         emitter.configuration("seed of pseudorandom number generator", values.random_seed)
+        emitter.configuration("use LLM-based test oracle extraction", values.oracle_extraction)
         emitter.configuration("llm for oracle generation", values.llm_generation_override if values.llm_generation_override is not None else "default")
         emitter.configuration("llm for method selection", values.llm_selection_override if values.llm_selection_override is not None else "default")
+        emitter.configuration("llm selection retries", values.llm_selection_retries)
         emitter.configuration("number of suspicious locations considered", values.num_suspicious_locations)
 
     def get_value(self, config_name):
@@ -165,6 +170,8 @@ class Configurations:
         values.num_iterations = self.__runtime_config_values["num-iterations"]
         values.total_timeout = self.__runtime_config_values["total-timeout"]
         values.no_test_filtered = self.__runtime_config_values["no-test-filtered"]
+        values.oracle_extraction = self.__runtime_config_values["oracle-extraction"]
+        values.llm_selection_retries = self.__runtime_config_values["selection-retries"]
         values.llm_generation_override = self.__runtime_config_values.get("llm_generation_override")
         values.llm_selection_override = self.__runtime_config_values.get("llm_selection_override")
         values.num_suspicious_locations = self.__runtime_config_values.get("num-suspicious-locations")

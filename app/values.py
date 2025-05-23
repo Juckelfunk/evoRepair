@@ -82,12 +82,13 @@ time_system_end = 0
 total_timeout = 0
 
 # ------------------- LLM Oracle Extraction --------------------
-use_llm_extraction = True
+oracle_extraction = False
 file_llm_config = _dir_root + "/llm_config.yml"
 file_bug_report = ""
 file_extracted_oracle = "" # LLM generated oracle will be saved in this file
 llm_generation_override = None # Used when the user specifies an LLM config via --llm-generation
 llm_selection_override = None # Used when the user specifies an LLM config via --llm-selection
+llm_selection_retries = 3
 num_suspicious_locations = 25 # Number of suspicious locations considered when extracting methods for selection
 
 llm_prompt_template = (
