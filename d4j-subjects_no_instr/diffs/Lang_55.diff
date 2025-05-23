@@ -1,0 +1,1374 @@
+diff --git a/default.properties b/default.properties
+index 287636f..b79e7ce 100644
+--- a/default.properties
++++ b/default.properties
+@@ -70,12 +70,12 @@ compile.optimize = true
+ # In particular, if you use JDK 1.4+ the generated classes will not be usable
+ # for a 1.1 Java VM unless you explicitly set this attribute to the value 1.1 
+ # (which is the default value for JDK 1.1 to 1.3).
+-compile.target = 1.1
++compile.target = 1.5
+ 
+ # Specifies the source version for the Java compiler.
+ # Corresponds to the source attribute for the ant javac task. 
+ # Valid values are 1.3, 1.4, 1.5. 
+-compile.source = 1.3
++compile.source = 1.5
+ 
+ # Should all tests fail if one does?
+ test.failonerror = true
+diff --git a/src/java/org/apache/commons/lang/enum/EnumUtils.java b/src/java/org/apache/commons/lang/enumeration/EnumUtils.java
+similarity index 91%
+rename from src/java/org/apache/commons/lang/enum/EnumUtils.java
+rename to src/java/org/apache/commons/lang/enumeration/EnumUtils.java
+index a2d527d..d8e227f 100644
+--- a/src/java/org/apache/commons/lang/enum/EnumUtils.java
++++ b/src/java/org/apache/commons/lang/enumeration/EnumUtils.java
+@@ -14,20 +14,20 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+ 
+ /**
+- * <p>Utility class for accessing and manipulating {@link Enum}s.</p>
++ * <p>Utility class for accessing and manipulating {@link Enumeration}s.</p>
+  *
+  * @deprecated Replaced by {@link org.apache.commons.lang.enums.EnumUtils org.apache.commons.lang.enums.EnumUtils} 
+  *          and will be removed in version 3.0. All classes in this package are deprecated and repackaged to 
+  *          {@link org.apache.commons.lang.enums} since <code>enum</code> is a Java 1.5 keyword. 
+  * @see org.apache.commons.lang.enums.EnumUtils
+- * @see Enum
++ * @see Enumeration
+  * @see ValuedEnum
+  * @author Stephen Colebourne
+  * @author Gary Gregory
+@@ -52,8 +52,8 @@ public class EnumUtils {
+      * @return the enum object
+      * @throws IllegalArgumentException if the enum class is <code>null</code>
+      */
+-    public static Enum getEnum(Class enumClass, String name) {
+-        return Enum.getEnum(enumClass, name);
++    public static Enumeration getEnum(Class enumClass, String name) {
++        return Enumeration.getEnum(enumClass, name);
+     }
+ 
+     /**
+@@ -82,7 +82,7 @@ public class EnumUtils {
+      *  of <code>Enum</code>
+      */
+     public static Map getEnumMap(Class enumClass) {
+-        return Enum.getEnumMap(enumClass);
++        return Enumeration.getEnumMap(enumClass);
+     }
+ 
+     /**
+@@ -102,7 +102,7 @@ public class EnumUtils {
+      *  of <code>Enum</code>
+      */
+     public static List getEnumList(Class enumClass) {
+-        return Enum.getEnumList(enumClass);
++        return Enumeration.getEnumList(enumClass);
+     }
+ 
+     /**
+@@ -122,7 +122,7 @@ public class EnumUtils {
+      * @throws IllegalArgumentException if the enum class is not a subclass of <code>Enum</code>
+      */
+     public static Iterator iterator(Class enumClass) {
+-        return Enum.getEnumList(enumClass).iterator();
++        return Enumeration.getEnumList(enumClass).iterator();
+     }
+     
+ }
+diff --git a/src/java/org/apache/commons/lang/enum/Enum.java b/src/java/org/apache/commons/lang/enumeration/Enumeration.java
+similarity index 95%
+rename from src/java/org/apache/commons/lang/enum/Enum.java
+rename to src/java/org/apache/commons/lang/enumeration/Enumeration.java
+index ea88831..3354ff8 100644
+--- a/src/java/org/apache/commons/lang/enum/Enum.java
++++ b/src/java/org/apache/commons/lang/enumeration/Enumeration.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.io.Serializable;
+ import java.lang.reflect.InvocationTargetException;
+@@ -51,7 +51,7 @@ import org.apache.commons.lang.StringUtils;
+  * <p>To use this class, it must be subclassed. For example:</p>
+  *
+  * <pre>
+- * public final class ColorEnum extends Enum {
++ * public final class ColorEnum extends Enumeration {
+  *   public static final ColorEnum RED = new ColorEnum("Red");
+  *   public static final ColorEnum GREEN = new ColorEnum("Green");
+  *   public static final ColorEnum BLUE = new ColorEnum("Blue");
+@@ -193,7 +193,7 @@ import org.apache.commons.lang.StringUtils;
+  *   public static final BWEnum WHITE = new BWEnum("White");
+  *
+  *   // static nested enum class
+- *   public static final class BWEnum extends Enum {
++ *   public static final class BWEnum extends Enumeration {
+  * 
+  *     static {
+  *       // explicitly reference BWEnum class to force constants to load
+@@ -214,7 +214,7 @@ import org.apache.commons.lang.StringUtils;
+  *   public static final BWEnum WHITE = BWEnum.WHITE;
+  *
+  *   // static nested enum class
+- *   public static final class BWEnum extends Enum {
++ *   public static final class BWEnum extends Enumeration {
+  *     // only define constants in enum classes - private if desired
+  *     private static final BWEnum BLACK = new BWEnum("Black");
+  *     private static final BWEnum WHITE = new BWEnum("White");
+@@ -226,10 +226,10 @@ import org.apache.commons.lang.StringUtils;
+  * 
+  * <p>For more details, see the 'Nested' test cases.
+  * 
+- * @deprecated Replaced by {@link org.apache.commons.lang.enums.Enum org.apache.commons.lang.enums.Enum} 
++ * @deprecated Replaced by {@link org.apache.commons.lang.enums.Enumeration org.apache.commons.lang.enums.Enum}
+  *          and will be removed in version 3.0. All classes in this package are deprecated and repackaged to 
+  *          {@link org.apache.commons.lang.enums} since <code>enum</code> is a Java 1.5 keyword. 
+- * @see org.apache.commons.lang.enums.Enum
++ * @see org.apache.commons.lang.enums.Enumeration
+  * @author Apache Avalon project
+  * @author Stephen Colebourne
+  * @author Chris Webb
+@@ -237,7 +237,7 @@ import org.apache.commons.lang.StringUtils;
+  * @since 1.0
+  * @version $Id$
+  */
+-public abstract class Enum implements Comparable, Serializable {
++public abstract class Enumeration implements Comparable, Serializable {
+ 
+     /**
+      * Required for serialization support. Lang version 1.0.1 serial compatibility.
+@@ -313,7 +313,7 @@ public abstract class Enum implements Comparable, Serializable {
+      * @throws IllegalArgumentException if the getEnumClass() method returns
+      *  a null or invalid Class
+      */
+-    protected Enum(String name) {
++    protected Enumeration(String name) {
+         super();
+         init(name);
+         iName = name;
+@@ -339,7 +339,7 @@ public abstract class Enum implements Comparable, Serializable {
+         }
+         Class cls = getClass();
+         boolean ok = false;
+-        while (cls != null && cls != Enum.class && cls != ValuedEnum.class) {
++        while (cls != null && cls != Enumeration.class && cls != ValuedEnum.class) {
+             if (cls == enumClass) {
+                 ok = true;
+                 break;
+@@ -390,12 +390,12 @@ public abstract class Enum implements Comparable, Serializable {
+      * @throws IllegalArgumentException if the enum class
+      *  is <code>null</code>
+      */
+-    protected static Enum getEnum(Class enumClass, String name) {
++    protected static Enumeration getEnum(Class enumClass, String name) {
+         Entry entry = getEntry(enumClass);
+         if (entry == null) {
+             return null;
+         }
+-        return (Enum) entry.map.get(name);
++        return (Enumeration) entry.map.get(name);
+     }
+ 
+     /**
+@@ -456,7 +456,7 @@ public abstract class Enum implements Comparable, Serializable {
+      * @throws IllegalArgumentException if the enum class is not a subclass of Enum
+      */
+     protected static Iterator iterator(Class enumClass) {
+-        return Enum.getEnumList(enumClass).iterator();
++        return Enumeration.getEnumList(enumClass).iterator();
+     }
+ 
+     //-----------------------------------------------------------------------
+@@ -470,7 +470,7 @@ public abstract class Enum implements Comparable, Serializable {
+         if (enumClass == null) {
+             throw new IllegalArgumentException("The Enum Class must not be null");
+         }
+-        if (Enum.class.isAssignableFrom(enumClass) == false) {
++        if (Enumeration.class.isAssignableFrom(enumClass) == false) {
+             throw new IllegalArgumentException("The Class must be a subclass of Enum");
+         }
+         Entry entry = (Entry) cEnumClasses.get(enumClass);
+@@ -488,7 +488,7 @@ public abstract class Enum implements Comparable, Serializable {
+     private static Entry createEntry(Class enumClass) {
+         Entry entry = new Entry();
+         Class cls = enumClass.getSuperclass();
+-        while (cls != null && cls != Enum.class && cls != ValuedEnum.class) {
++        while (cls != null && cls != Enumeration.class && cls != ValuedEnum.class) {
+             Entry loopEntry = (Entry) cEnumClasses.get(cls);
+             if (loopEntry != null) {
+                 entry.list.addAll(loopEntry.list);
+@@ -546,7 +546,7 @@ public abstract class Enum implements Comparable, Serializable {
+             // Ok to do a class cast to Enum here since the test above
+             // guarantee both
+             // classes are in the same class loader.
+-            return iName.equals(((Enum) other).iName);
++            return iName.equals(((Enumeration) other).iName);
+         } else {
+             // This and other are in different class loaders, we must use reflection.
+             if (other.getClass().getName().equals(this.getClass().getName()) == false) {
+@@ -590,7 +590,7 @@ public abstract class Enum implements Comparable, Serializable {
+                 return iName.compareTo( getNameInOtherClassLoader(other) );
+             }
+         }
+-        return iName.compareTo(((Enum) other).iName);
++        return iName.compareTo(((Enumeration) other).iName);
+     }
+ 
+     /**
+diff --git a/src/java/org/apache/commons/lang/enum/ValuedEnum.java b/src/java/org/apache/commons/lang/enumeration/ValuedEnum.java
+similarity index 96%
+rename from src/java/org/apache/commons/lang/enum/ValuedEnum.java
+rename to src/java/org/apache/commons/lang/enumeration/ValuedEnum.java
+index 5874f29..263281c 100644
+--- a/src/java/org/apache/commons/lang/enum/ValuedEnum.java
++++ b/src/java/org/apache/commons/lang/enumeration/ValuedEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -102,7 +102,7 @@ import org.apache.commons.lang.ClassUtils;
+  * @since 1.0
+  * @version $Id$
+  */
+-public abstract class ValuedEnum extends Enum {
++public abstract class ValuedEnum extends Enumeration {
+     
+     /**
+      * Required for serialization support. Lang version 1.0.1 serial compatibility.
+@@ -139,11 +139,11 @@ public abstract class ValuedEnum extends Enum {
+      * @return the enum object, or null if the enum does not exist
+      * @throws IllegalArgumentException if the enum class is <code>null</code>
+      */
+-    protected static Enum getEnum(Class enumClass, int value) {
++    protected static Enumeration getEnum(Class enumClass, int value) {
+         if (enumClass == null) {
+             throw new IllegalArgumentException("The Enum Class must not be null");
+         }
+-        List list = Enum.getEnumList(enumClass);
++        List list = Enumeration.getEnumList(enumClass);
+         for (Iterator it = list.iterator(); it.hasNext();) {
+             ValuedEnum enumeration = (ValuedEnum) it.next();
+             if (enumeration.getValue() == value) {
+diff --git a/src/java/org/apache/commons/lang/enum/package.html b/src/java/org/apache/commons/lang/enumeration/package.html
+similarity index 97%
+rename from src/java/org/apache/commons/lang/enum/package.html
+rename to src/java/org/apache/commons/lang/enumeration/package.html
+index 0eeb42b..944c77e 100644
+--- a/src/java/org/apache/commons/lang/enum/package.html
++++ b/src/java/org/apache/commons/lang/enumeration/package.html
+@@ -31,7 +31,7 @@ Provides an implementation of the C style <code>enum</code> in the Java world.
+ The classic example being an RGB color enumeration.
+ </p>
+ <pre>
+-public final class ColorEnum extends Enum {
++public final class ColorEnum extends Enumeration {
+     public static final ColorEnum RED = new ColorEnum("Red");
+     public static final ColorEnum GREEN = new ColorEnum("Green");
+     public static final ColorEnum BLUE = new ColorEnum("Blue");
+diff --git a/src/java/org/apache/commons/lang/enums/EnumUtils.java b/src/java/org/apache/commons/lang/enums/EnumUtils.java
+index 4b3282d..46b6a5d 100644
+--- a/src/java/org/apache/commons/lang/enums/EnumUtils.java
++++ b/src/java/org/apache/commons/lang/enums/EnumUtils.java
+@@ -21,9 +21,9 @@ import java.util.List;
+ import java.util.Map;
+ 
+ /**
+- * <p>Utility class for accessing and manipulating {@link Enum}s.</p>
++ * <p>Utility class for accessing and manipulating {@link Enumeration}s.</p>
+  *
+- * @see Enum
++ * @see Enumeration
+  * @see ValuedEnum
+  * @author Stephen Colebourne
+  * @author Gary Gregory
+@@ -48,8 +48,8 @@ public class EnumUtils {
+      * @return the enum object
+      * @throws IllegalArgumentException if the enum class is <code>null</code>
+      */
+-    public static Enum getEnum(Class enumClass, String name) {
+-        return Enum.getEnum(enumClass, name);
++    public static Enumeration getEnum(Class enumClass, String name) {
++        return Enumeration.getEnum(enumClass, name);
+     }
+ 
+     /**
+@@ -78,7 +78,7 @@ public class EnumUtils {
+      *  of <code>Enum</code>
+      */
+     public static Map getEnumMap(Class enumClass) {
+-        return Enum.getEnumMap(enumClass);
++        return Enumeration.getEnumMap(enumClass);
+     }
+ 
+     /**
+@@ -98,7 +98,7 @@ public class EnumUtils {
+      *  of <code>Enum</code>
+      */
+     public static List getEnumList(Class enumClass) {
+-        return Enum.getEnumList(enumClass);
++        return Enumeration.getEnumList(enumClass);
+     }
+ 
+     /**
+@@ -118,7 +118,7 @@ public class EnumUtils {
+      * @throws IllegalArgumentException if the enum class is not a subclass of <code>Enum</code>
+      */
+     public static Iterator iterator(Class enumClass) {
+-        return Enum.getEnumList(enumClass).iterator();
++        return Enumeration.getEnumList(enumClass).iterator();
+     }
+     
+ }
+diff --git a/src/java/org/apache/commons/lang/enums/Enum.java b/src/java/org/apache/commons/lang/enums/Enumeration.java
+similarity index 96%
+rename from src/java/org/apache/commons/lang/enums/Enum.java
+rename to src/java/org/apache/commons/lang/enums/Enumeration.java
+index 6fce6fb..862c25f 100644
+--- a/src/java/org/apache/commons/lang/enums/Enum.java
++++ b/src/java/org/apache/commons/lang/enums/Enumeration.java
+@@ -51,7 +51,7 @@ import org.apache.commons.lang.StringUtils;
+  * <p>To use this class, it must be subclassed. For example:</p>
+  *
+  * <pre>
+- * public final class ColorEnum extends Enum {
++ * public final class ColorEnum extends Enumeration {
+  *   public static final ColorEnum RED = new ColorEnum("Red");
+  *   public static final ColorEnum GREEN = new ColorEnum("Green");
+  *   public static final ColorEnum BLUE = new ColorEnum("Blue");
+@@ -193,7 +193,7 @@ import org.apache.commons.lang.StringUtils;
+  *   public static final BWEnum WHITE = new BWEnum("White");
+  *
+  *   // static nested enum class
+- *   public static final class BWEnum extends Enum {
++ *   public static final class BWEnum extends Enumeration {
+  * 
+  *     static {
+  *       // explicitly reference BWEnum class to force constants to load
+@@ -214,7 +214,7 @@ import org.apache.commons.lang.StringUtils;
+  *   public static final BWEnum WHITE = BWEnum.WHITE;
+  *
+  *   // static nested enum class
+- *   public static final class BWEnum extends Enum {
++ *   public static final class BWEnum extends Enumeration {
+  *     // only define constants in enum classes - private if desired
+  *     private static final BWEnum BLACK = new BWEnum("Black");
+  *     private static final BWEnum WHITE = new BWEnum("White");
+@@ -283,7 +283,7 @@ import org.apache.commons.lang.StringUtils;
+  * @since 2.1 (class existed in enum package from v1.0)
+  * @version $Id$
+  */
+-public abstract class Enum implements Comparable, Serializable {
++public abstract class Enumeration implements Comparable, Serializable {
+ 
+     /**
+      * Required for serialization support.
+@@ -359,7 +359,7 @@ public abstract class Enum implements Comparable, Serializable {
+      * @throws IllegalArgumentException if the getEnumClass() method returns
+      *  a null or invalid Class
+      */
+-    protected Enum(String name) {
++    protected Enumeration(String name) {
+         super();
+         init(name);
+         iName = name;
+@@ -385,7 +385,7 @@ public abstract class Enum implements Comparable, Serializable {
+         }
+         Class cls = getClass();
+         boolean ok = false;
+-        while (cls != null && cls != Enum.class && cls != ValuedEnum.class) {
++        while (cls != null && cls != Enumeration.class && cls != ValuedEnum.class) {
+             if (cls == enumClass) {
+                 ok = true;
+                 break;
+@@ -436,12 +436,12 @@ public abstract class Enum implements Comparable, Serializable {
+      * @throws IllegalArgumentException if the enum class
+      *  is <code>null</code>
+      */
+-    protected static Enum getEnum(Class enumClass, String name) {
++    protected static Enumeration getEnum(Class enumClass, String name) {
+         Entry entry = getEntry(enumClass);
+         if (entry == null) {
+             return null;
+         }
+-        return (Enum) entry.map.get(name);
++        return (Enumeration) entry.map.get(name);
+     }
+ 
+     /**
+@@ -502,7 +502,7 @@ public abstract class Enum implements Comparable, Serializable {
+      * @throws IllegalArgumentException if the enum class is not a subclass of Enum
+      */
+     protected static Iterator iterator(Class enumClass) {
+-        return Enum.getEnumList(enumClass).iterator();
++        return Enumeration.getEnumList(enumClass).iterator();
+     }
+ 
+     //-----------------------------------------------------------------------
+@@ -516,7 +516,7 @@ public abstract class Enum implements Comparable, Serializable {
+         if (enumClass == null) {
+             throw new IllegalArgumentException("The Enum Class must not be null");
+         }
+-        if (Enum.class.isAssignableFrom(enumClass) == false) {
++        if (Enumeration.class.isAssignableFrom(enumClass) == false) {
+             throw new IllegalArgumentException("The Class must be a subclass of Enum");
+         }
+         Entry entry = (Entry) cEnumClasses.get(enumClass);
+@@ -534,7 +534,7 @@ public abstract class Enum implements Comparable, Serializable {
+     private static Entry createEntry(Class enumClass) {
+         Entry entry = new Entry();
+         Class cls = enumClass.getSuperclass();
+-        while (cls != null && cls != Enum.class && cls != ValuedEnum.class) {
++        while (cls != null && cls != Enumeration.class && cls != ValuedEnum.class) {
+             Entry loopEntry = (Entry) cEnumClasses.get(cls);
+             if (loopEntry != null) {
+                 entry.list.addAll(loopEntry.list);
+@@ -592,7 +592,7 @@ public abstract class Enum implements Comparable, Serializable {
+             // Ok to do a class cast to Enum here since the test above
+             // guarantee both
+             // classes are in the same class loader.
+-            return iName.equals(((Enum) other).iName);
++            return iName.equals(((Enumeration) other).iName);
+         } else {
+             // This and other are in different class loaders, we must check indirectly
+             if (other.getClass().getName().equals(this.getClass().getName()) == false) {
+@@ -638,7 +638,7 @@ public abstract class Enum implements Comparable, Serializable {
+             throw new ClassCastException(
+                     "Different enum class '" + ClassUtils.getShortClassName(other.getClass()) + "'");
+         }
+-        return iName.compareTo(((Enum) other).iName);
++        return iName.compareTo(((Enumeration) other).iName);
+     }
+ 
+     /**
+diff --git a/src/java/org/apache/commons/lang/enums/ValuedEnum.java b/src/java/org/apache/commons/lang/enums/ValuedEnum.java
+index d88d44c..ff209bc 100644
+--- a/src/java/org/apache/commons/lang/enums/ValuedEnum.java
++++ b/src/java/org/apache/commons/lang/enums/ValuedEnum.java
+@@ -107,7 +107,7 @@ import org.apache.commons.lang.ClassUtils;
+  * @since 2.1 (class existed in enum package from v1.0)
+  * @version $Id$
+  */
+-public abstract class ValuedEnum extends Enum {
++public abstract class ValuedEnum extends Enumeration {
+     
+     /**
+      * Required for serialization support.
+@@ -144,11 +144,11 @@ public abstract class ValuedEnum extends Enum {
+      * @return the enum object, or null if the enum does not exist
+      * @throws IllegalArgumentException if the enum class is <code>null</code>
+      */
+-    protected static Enum getEnum(Class enumClass, int value) {
++    protected static Enumeration getEnum(Class enumClass, int value) {
+         if (enumClass == null) {
+             throw new IllegalArgumentException("The Enum Class must not be null");
+         }
+-        List list = Enum.getEnumList(enumClass);
++        List list = Enumeration.getEnumList(enumClass);
+         for (Iterator it = list.iterator(); it.hasNext();) {
+             ValuedEnum enumeration = (ValuedEnum) it.next();
+             if (enumeration.getValue() == value) {
+diff --git a/src/java/org/apache/commons/lang/enums/package.html b/src/java/org/apache/commons/lang/enums/package.html
+index c5db869..cdda14e 100644
+--- a/src/java/org/apache/commons/lang/enums/package.html
++++ b/src/java/org/apache/commons/lang/enums/package.html
+@@ -23,7 +23,7 @@ Provides an implementation of the C style <code>enum</code> in the Java world.
+ The classic example being an RGB color enumeration.
+ </p>
+ <pre>
+-public final class ColorEnum extends Enum {
++public final class ColorEnum extends Enumeration {
+     public static final ColorEnum RED = new ColorEnum("Red");
+     public static final ColorEnum GREEN = new ColorEnum("Green");
+     public static final ColorEnum BLUE = new ColorEnum("Blue");
+diff --git a/src/test/org/apache/commons/lang/AllLangTestSuite.java b/src/test/org/apache/commons/lang/AllLangTestSuite.java
+index af07c1f..f0f1162 100644
+--- a/src/test/org/apache/commons/lang/AllLangTestSuite.java
++++ b/src/test/org/apache/commons/lang/AllLangTestSuite.java
+@@ -60,7 +60,7 @@ public class AllLangTestSuite extends TestCase {
+         suite.addTest(LangTestSuite.suite());
+         suite.addTest(BuilderTestSuite.suite());
+         suite.addTest(EnumTestSuite.suite());
+-        suite.addTest(org.apache.commons.lang.enum.EnumTestSuite.suite());
++        suite.addTest(org.apache.commons.lang.enumeration.EnumTestSuite.suite());
+         suite.addTest(ExceptionTestSuite.suite());
+         suite.addTest(MathTestSuite.suite());
+         suite.addTest(MutableTestSuite.suite());
+diff --git a/src/test/org/apache/commons/lang/enum/Broken1Enum.java b/src/test/org/apache/commons/lang/enumeration/Broken1Enum.java
+similarity index 94%
+rename from src/test/org/apache/commons/lang/enum/Broken1Enum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken1Enum.java
+index 21203f0..4b8ac3b 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken1Enum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken1Enum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
+  */
+-public final class Broken1Enum extends Enum {
++public final class Broken1Enum extends Enumeration {
+     public static final Broken1Enum RED = new Broken1Enum("Red");
+     public static final Broken1Enum GREEN = new Broken1Enum("Green");
+     public static final Broken1Enum GREENISH = new Broken1Enum("Green");  // duplicate not allowed
+diff --git a/src/test/org/apache/commons/lang/enum/Broken1OperationEnum.java b/src/test/org/apache/commons/lang/enumeration/Broken1OperationEnum.java
+similarity index 96%
+rename from src/test/org/apache/commons/lang/enum/Broken1OperationEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken1OperationEnum.java
+index 58c66f9..0eaf6a2 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken1OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken1OperationEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken1OperationEnum extends Enum {
++public abstract class Broken1OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enum/Broken2Enum.java b/src/test/org/apache/commons/lang/enumeration/Broken2Enum.java
+similarity index 94%
+rename from src/test/org/apache/commons/lang/enum/Broken2Enum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken2Enum.java
+index 246659f..f782dbe 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken2Enum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken2Enum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
+  */
+-public final class Broken2Enum extends Enum {
++public final class Broken2Enum extends Enumeration {
+     public static final Broken2Enum RED = new Broken2Enum("Red");
+     public static final Broken2Enum GREEN = new Broken2Enum("Green");
+     public static final Broken2Enum BLUE = new Broken2Enum("");  // blank not allowed
+diff --git a/src/test/org/apache/commons/lang/enum/Broken2OperationEnum.java b/src/test/org/apache/commons/lang/enumeration/Broken2OperationEnum.java
+similarity index 96%
+rename from src/test/org/apache/commons/lang/enum/Broken2OperationEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken2OperationEnum.java
+index d2eb517..7fae0bd 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken2OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken2OperationEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken2OperationEnum extends Enum {
++public abstract class Broken2OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enum/Broken3Enum.java b/src/test/org/apache/commons/lang/enumeration/Broken3Enum.java
+similarity index 94%
+rename from src/test/org/apache/commons/lang/enum/Broken3Enum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken3Enum.java
+index 84e9737..edce87d 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken3Enum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken3Enum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
+  */
+-public final class Broken3Enum extends Enum {
++public final class Broken3Enum extends Enumeration {
+     public static final Broken3Enum RED = new Broken3Enum("Red");
+     public static final Broken3Enum GREEN = new Broken3Enum("Green");
+     public static final Broken3Enum BLUE = new Broken3Enum(null);  // null not allowed
+diff --git a/src/test/org/apache/commons/lang/enum/Broken3OperationEnum.java b/src/test/org/apache/commons/lang/enumeration/Broken3OperationEnum.java
+similarity index 96%
+rename from src/test/org/apache/commons/lang/enum/Broken3OperationEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken3OperationEnum.java
+index b577abd..becfd4f 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken3OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken3OperationEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken3OperationEnum extends Enum {
++public abstract class Broken3OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enum/Broken4OperationEnum.java b/src/test/org/apache/commons/lang/enumeration/Broken4OperationEnum.java
+similarity index 96%
+rename from src/test/org/apache/commons/lang/enum/Broken4OperationEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken4OperationEnum.java
+index 9d62209..e4a5e98 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken4OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken4OperationEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken4OperationEnum extends Enum {
++public abstract class Broken4OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enum/Broken5OperationEnum.java b/src/test/org/apache/commons/lang/enumeration/Broken5OperationEnum.java
+similarity index 96%
+rename from src/test/org/apache/commons/lang/enum/Broken5OperationEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/Broken5OperationEnum.java
+index 7f7f698..378817c 100644
+--- a/src/test/org/apache/commons/lang/enum/Broken5OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Broken5OperationEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken5OperationEnum extends Enum {
++public abstract class Broken5OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enum/ColorEnum.java b/src/test/org/apache/commons/lang/enumeration/ColorEnum.java
+similarity index 94%
+rename from src/test/org/apache/commons/lang/enum/ColorEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/ColorEnum.java
+index 0107ea9..712c2af 100644
+--- a/src/test/org/apache/commons/lang/enum/ColorEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/ColorEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -27,7 +27,7 @@ import java.util.Map;
+  * @version $Id$
+  */
+ 
+-public final class ColorEnum extends Enum {
++public final class ColorEnum extends Enumeration {
+     public static final ColorEnum RED = new ColorEnum("Red");
+     public static final ColorEnum GREEN = new ColorEnum("Green");
+     public static final ColorEnum BLUE = new ColorEnum("Blue");
+diff --git a/src/test/org/apache/commons/lang/enum/DummyEnum.java b/src/test/org/apache/commons/lang/enumeration/DummyEnum.java
+similarity index 90%
+rename from src/test/org/apache/commons/lang/enum/DummyEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/DummyEnum.java
+index cc14402..4b02f7a 100644
+--- a/src/test/org/apache/commons/lang/enum/DummyEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/DummyEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ /**
+  * Dummy enumeration - no values.
+@@ -22,7 +22,7 @@ package org.apache.commons.lang.enum;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class DummyEnum extends Enum {
++public abstract class DummyEnum extends Enumeration {
+ 
+     private DummyEnum(String name) {
+         super(name);
+diff --git a/src/test/org/apache/commons/lang/enum/EnumTest.java b/src/test/org/apache/commons/lang/enumeration/EnumTest.java
+similarity index 99%
+rename from src/test/org/apache/commons/lang/enum/EnumTest.java
+rename to src/test/org/apache/commons/lang/enumeration/EnumTest.java
+index 9ca9bb9..0543428 100644
+--- a/src/test/org/apache/commons/lang/enum/EnumTest.java
++++ b/src/test/org/apache/commons/lang/enumeration/EnumTest.java
+@@ -15,7 +15,7 @@
+  * limitations under the License.
+  */
+ 
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+@@ -44,7 +44,7 @@ import org.apache.commons.lang.SerializationUtils;
+ 
+ public final class EnumTest extends TestCase {
+ 
+-    private static final String ENUM_CLASS_NAME = "org.apache.commons.lang.enum.ColorEnum";
++    private static final String ENUM_CLASS_NAME = "org.apache.commons.lang.enumeration.ColorEnum";
+ 
+     public EnumTest(String name) {
+         super(name);
+diff --git a/src/test/org/apache/commons/lang/enum/EnumTestSuite.java b/src/test/org/apache/commons/lang/enumeration/EnumTestSuite.java
+similarity index 97%
+rename from src/test/org/apache/commons/lang/enum/EnumTestSuite.java
+rename to src/test/org/apache/commons/lang/enumeration/EnumTestSuite.java
+index 34dde67..9c2bc62 100644
+--- a/src/test/org/apache/commons/lang/enum/EnumTestSuite.java
++++ b/src/test/org/apache/commons/lang/enumeration/EnumTestSuite.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import junit.framework.Test;
+ import junit.framework.TestCase;
+diff --git a/src/test/org/apache/commons/lang/enum/EnumUtilsTest.java b/src/test/org/apache/commons/lang/enumeration/EnumUtilsTest.java
+similarity index 99%
+rename from src/test/org/apache/commons/lang/enum/EnumUtilsTest.java
+rename to src/test/org/apache/commons/lang/enumeration/EnumUtilsTest.java
+index 2a18048..3ce62f9 100644
+--- a/src/test/org/apache/commons/lang/enum/EnumUtilsTest.java
++++ b/src/test/org/apache/commons/lang/enumeration/EnumUtilsTest.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.lang.reflect.Constructor;
+ import java.lang.reflect.Modifier;
+diff --git a/src/test/org/apache/commons/lang/enum/Extended1Enum.java b/src/test/org/apache/commons/lang/enumeration/Extended1Enum.java
+similarity index 94%
+rename from src/test/org/apache/commons/lang/enum/Extended1Enum.java
+rename to src/test/org/apache/commons/lang/enumeration/Extended1Enum.java
+index 50c303f..0952204 100644
+--- a/src/test/org/apache/commons/lang/enum/Extended1Enum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Extended1Enum.java
+@@ -16,7 +16,7 @@
+  * specific language governing permissions and limitations
+  * under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -28,7 +28,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public class Extended1Enum extends Enum {
++public class Extended1Enum extends Enumeration {
+     public static final Extended1Enum ALPHA = new Extended1Enum("Alpha");
+     public static final Extended1Enum BETA = new Extended1Enum("Beta");
+ 
+diff --git a/src/test/org/apache/commons/lang/enum/Extended2Enum.java b/src/test/org/apache/commons/lang/enumeration/Extended2Enum.java
+similarity index 97%
+rename from src/test/org/apache/commons/lang/enum/Extended2Enum.java
+rename to src/test/org/apache/commons/lang/enumeration/Extended2Enum.java
+index 6f0be12..9ad24e3 100644
+--- a/src/test/org/apache/commons/lang/enum/Extended2Enum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Extended2Enum.java
+@@ -16,7 +16,7 @@
+  * specific language governing permissions and limitations
+  * under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+diff --git a/src/test/org/apache/commons/lang/enum/Extended3Enum.java b/src/test/org/apache/commons/lang/enumeration/Extended3Enum.java
+similarity index 81%
+rename from src/test/org/apache/commons/lang/enum/Extended3Enum.java
+rename to src/test/org/apache/commons/lang/enumeration/Extended3Enum.java
+index c857410..e14b437 100644
+--- a/src/test/org/apache/commons/lang/enum/Extended3Enum.java
++++ b/src/test/org/apache/commons/lang/enumeration/Extended3Enum.java
+@@ -16,7 +16,7 @@
+  * specific language governing permissions and limitations
+  * under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -36,19 +36,19 @@ public class Extended3Enum extends Extended2Enum {
+     }
+ 
+     public static Extended1Enum getEnum(String name) {
+-        return (Extended1Enum) Enum.getEnum(Extended3Enum.class, name);
++        return (Extended1Enum) Enumeration.getEnum(Extended3Enum.class, name);
+     }
+ 
+     public static Map getEnumMap() {
+-        return Enum.getEnumMap(Extended3Enum.class);
++        return Enumeration.getEnumMap(Extended3Enum.class);
+     }
+ 
+     public static List getEnumList() {
+-        return Enum.getEnumList(Extended3Enum.class);
++        return Enumeration.getEnumList(Extended3Enum.class);
+     }
+ 
+     public static Iterator iterator() {
+-        return Enum.iterator(Extended3Enum.class);
++        return Enumeration.iterator(Extended3Enum.class);
+     }
+ 
+ }
+diff --git a/src/test/org/apache/commons/lang/enum/Nest.java b/src/test/org/apache/commons/lang/enumeration/Nest.java
+similarity index 94%
+rename from src/test/org/apache/commons/lang/enum/Nest.java
+rename to src/test/org/apache/commons/lang/enumeration/Nest.java
+index d31ef32..942bfe5 100644
+--- a/src/test/org/apache/commons/lang/enum/Nest.java
++++ b/src/test/org/apache/commons/lang/enumeration/Nest.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -35,7 +35,7 @@ public final class Nest {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+         public static final ColorEnum RED = new ColorEnum("Red");
+         public static final ColorEnum GREEN = new ColorEnum("Green");
+         public static final ColorEnum BLUE = new ColorEnum("Blue");
+diff --git a/src/test/org/apache/commons/lang/enum/NestBroken.java b/src/test/org/apache/commons/lang/enumeration/NestBroken.java
+similarity index 95%
+rename from src/test/org/apache/commons/lang/enum/NestBroken.java
+rename to src/test/org/apache/commons/lang/enumeration/NestBroken.java
+index 8f6e919..1c594d1 100644
+--- a/src/test/org/apache/commons/lang/enum/NestBroken.java
++++ b/src/test/org/apache/commons/lang/enumeration/NestBroken.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -42,7 +42,7 @@ public final class NestBroken {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+ 
+         private ColorEnum(String color) {
+             super(color);
+diff --git a/src/test/org/apache/commons/lang/enum/NestLinked.java b/src/test/org/apache/commons/lang/enumeration/NestLinked.java
+similarity index 95%
+rename from src/test/org/apache/commons/lang/enum/NestLinked.java
+rename to src/test/org/apache/commons/lang/enumeration/NestLinked.java
+index 499b4a6..af8edb3 100644
+--- a/src/test/org/apache/commons/lang/enum/NestLinked.java
++++ b/src/test/org/apache/commons/lang/enumeration/NestLinked.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -44,7 +44,7 @@ public final class NestLinked {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+ 
+         static {
+             // Explicitly reference the class where the enums are defined
+diff --git a/src/test/org/apache/commons/lang/enum/NestReferenced.java b/src/test/org/apache/commons/lang/enumeration/NestReferenced.java
+similarity index 95%
+rename from src/test/org/apache/commons/lang/enum/NestReferenced.java
+rename to src/test/org/apache/commons/lang/enumeration/NestReferenced.java
+index dbbef4f..ddda297 100644
+--- a/src/test/org/apache/commons/lang/enum/NestReferenced.java
++++ b/src/test/org/apache/commons/lang/enumeration/NestReferenced.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -40,7 +40,7 @@ public final class NestReferenced {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+ 
+         // must be defined here, not just in outer class
+         private static final ColorEnum RED = new ColorEnum("Red");
+diff --git a/src/test/org/apache/commons/lang/enum/OperationEnum.java b/src/test/org/apache/commons/lang/enumeration/OperationEnum.java
+similarity index 96%
+rename from src/test/org/apache/commons/lang/enum/OperationEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/OperationEnum.java
+index 0cbae39..78e7f4f 100644
+--- a/src/test/org/apache/commons/lang/enum/OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/OperationEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class OperationEnum extends Enum {
++public abstract class OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enum/ValuedColorEnum.java b/src/test/org/apache/commons/lang/enumeration/ValuedColorEnum.java
+similarity index 97%
+rename from src/test/org/apache/commons/lang/enum/ValuedColorEnum.java
+rename to src/test/org/apache/commons/lang/enumeration/ValuedColorEnum.java
+index 5181cd7..d5e63f6 100644
+--- a/src/test/org/apache/commons/lang/enum/ValuedColorEnum.java
++++ b/src/test/org/apache/commons/lang/enumeration/ValuedColorEnum.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+diff --git a/src/test/org/apache/commons/lang/enum/ValuedEnumTest.java b/src/test/org/apache/commons/lang/enumeration/ValuedEnumTest.java
+similarity index 99%
+rename from src/test/org/apache/commons/lang/enum/ValuedEnumTest.java
+rename to src/test/org/apache/commons/lang/enumeration/ValuedEnumTest.java
+index 5a91f72..033a6fd 100644
+--- a/src/test/org/apache/commons/lang/enum/ValuedEnumTest.java
++++ b/src/test/org/apache/commons/lang/enumeration/ValuedEnumTest.java
+@@ -14,7 +14,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.apache.commons.lang.enum;
++package org.apache.commons.lang.enumeration;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+diff --git a/src/test/org/apache/commons/lang/enums/Broken1Enum.java b/src/test/org/apache/commons/lang/enums/Broken1Enum.java
+index 6ae4e89..fbe3fd3 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken1Enum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken1Enum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
+  */
+-public final class Broken1Enum extends Enum {
++public final class Broken1Enum extends Enumeration {
+     public static final Broken1Enum RED = new Broken1Enum("Red");
+     public static final Broken1Enum GREEN = new Broken1Enum("Green");
+     public static final Broken1Enum GREENISH = new Broken1Enum("Green");  // duplicate not allowed
+diff --git a/src/test/org/apache/commons/lang/enums/Broken1OperationEnum.java b/src/test/org/apache/commons/lang/enums/Broken1OperationEnum.java
+index 7333985..a0f6caa 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken1OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken1OperationEnum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken1OperationEnum extends Enum {
++public abstract class Broken1OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enums/Broken2Enum.java b/src/test/org/apache/commons/lang/enums/Broken2Enum.java
+index 2662466..ee91cd8 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken2Enum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken2Enum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
+  */
+-public final class Broken2Enum extends Enum {
++public final class Broken2Enum extends Enumeration {
+     public static final Broken2Enum RED = new Broken2Enum("Red");
+     public static final Broken2Enum GREEN = new Broken2Enum("Green");
+     public static final Broken2Enum BLUE = new Broken2Enum("");  // blank not allowed
+diff --git a/src/test/org/apache/commons/lang/enums/Broken2OperationEnum.java b/src/test/org/apache/commons/lang/enums/Broken2OperationEnum.java
+index 5747770..ffc5c99 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken2OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken2OperationEnum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken2OperationEnum extends Enum {
++public abstract class Broken2OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enums/Broken3Enum.java b/src/test/org/apache/commons/lang/enums/Broken3Enum.java
+index 5b68d92..6208023 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken3Enum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken3Enum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
+  */
+-public final class Broken3Enum extends Enum {
++public final class Broken3Enum extends Enumeration {
+     public static final Broken3Enum RED = new Broken3Enum("Red");
+     public static final Broken3Enum GREEN = new Broken3Enum("Green");
+     public static final Broken3Enum BLUE = new Broken3Enum(null);  // null not allowed
+diff --git a/src/test/org/apache/commons/lang/enums/Broken3OperationEnum.java b/src/test/org/apache/commons/lang/enums/Broken3OperationEnum.java
+index afb0bc3..12e48f0 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken3OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken3OperationEnum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken3OperationEnum extends Enum {
++public abstract class Broken3OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+@@ -63,7 +63,7 @@ public abstract class Broken3OperationEnum extends Enum {
+     }
+     
+     public final Class getEnumClass() {
+-        return Enum.class;
++        return Enumeration.class;
+     }
+ 
+     public abstract int eval(int a, int b);
+diff --git a/src/test/org/apache/commons/lang/enums/Broken4OperationEnum.java b/src/test/org/apache/commons/lang/enums/Broken4OperationEnum.java
+index 2be5e28..1e9b340 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken4OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken4OperationEnum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken4OperationEnum extends Enum {
++public abstract class Broken4OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enums/Broken5OperationEnum.java b/src/test/org/apache/commons/lang/enums/Broken5OperationEnum.java
+index c6920ad..98da038 100644
+--- a/src/test/org/apache/commons/lang/enums/Broken5OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enums/Broken5OperationEnum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class Broken5OperationEnum extends Enum {
++public abstract class Broken5OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enums/ColorEnum.java b/src/test/org/apache/commons/lang/enums/ColorEnum.java
+index ec67ec3..4dab035 100644
+--- a/src/test/org/apache/commons/lang/enums/ColorEnum.java
++++ b/src/test/org/apache/commons/lang/enums/ColorEnum.java
+@@ -27,7 +27,7 @@ import java.util.Map;
+  * @version $Id$
+  */
+ 
+-public final class ColorEnum extends Enum {
++public final class ColorEnum extends Enumeration {
+     public static final ColorEnum RED = new ColorEnum("Red");
+     public static final ColorEnum GREEN = new ColorEnum("Green");
+     public static final ColorEnum BLUE = new ColorEnum("Blue");
+diff --git a/src/test/org/apache/commons/lang/enums/DummyEnum.java b/src/test/org/apache/commons/lang/enums/DummyEnum.java
+index c806138..9a6be0a 100644
+--- a/src/test/org/apache/commons/lang/enums/DummyEnum.java
++++ b/src/test/org/apache/commons/lang/enums/DummyEnum.java
+@@ -22,7 +22,7 @@ package org.apache.commons.lang.enums;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class DummyEnum extends Enum {
++public abstract class DummyEnum extends Enumeration {
+ 
+     private DummyEnum(String name) {
+         super(name);
+diff --git a/src/test/org/apache/commons/lang/enums/EnumEqualsTest.java b/src/test/org/apache/commons/lang/enums/EnumEqualsTest.java
+index b6ae1b6..6762045 100644
+--- a/src/test/org/apache/commons/lang/enums/EnumEqualsTest.java
++++ b/src/test/org/apache/commons/lang/enums/EnumEqualsTest.java
+@@ -23,7 +23,7 @@ import junit.framework.TestCase;
+ import junit.framework.TestSuite;
+ 
+ /**
+- * Test cases for the {@link Enum} class equals method.
++ * Test cases for the {@link Enumeration} class equals method.
+  *
+  * @author Matthias Eichel
+  * @author Stephen Colebourne
+@@ -45,7 +45,7 @@ public final class EnumEqualsTest extends TestCase {
+     }
+ 
+     //-----------------------------------------------------------------------
+-    static final class CarColorEnum extends Enum {
++    static final class CarColorEnum extends Enumeration {
+         public static final CarColorEnum BLACK = new CarColorEnum("black");
+         public static final CarColorEnum BROWN = new CarColorEnum("brown");
+         public static final CarColorEnum YELLOW = new CarColorEnum("yellow");
+@@ -57,7 +57,7 @@ public final class EnumEqualsTest extends TestCase {
+         }
+     }
+ 
+-    static final class TrafficlightColorEnum extends Enum {
++    static final class TrafficlightColorEnum extends Enumeration {
+         public static final TrafficlightColorEnum RED = new TrafficlightColorEnum("red");
+         public static final TrafficlightColorEnum YELLOW = new TrafficlightColorEnum("yellow");
+         public static final TrafficlightColorEnum GREEN = new TrafficlightColorEnum("green");
+diff --git a/src/test/org/apache/commons/lang/enums/EnumTest.java b/src/test/org/apache/commons/lang/enums/EnumTest.java
+index f324bbe..9502cf6 100644
+--- a/src/test/org/apache/commons/lang/enums/EnumTest.java
++++ b/src/test/org/apache/commons/lang/enums/EnumTest.java
+@@ -33,7 +33,7 @@ import junit.framework.TestSuite;
+ import org.apache.commons.lang.SerializationUtils;
+ 
+ /**
+- * Test cases for the {@link Enum} class.
++ * Test cases for the {@link Enumeration} class.
+  *
+  * @author Stephen Colebourne
+  * @author Gary D. Gregory
+diff --git a/src/test/org/apache/commons/lang/enums/EnumUtilsTest.java b/src/test/org/apache/commons/lang/enums/EnumUtilsTest.java
+index e7978d0..aa3370a 100644
+--- a/src/test/org/apache/commons/lang/enums/EnumUtilsTest.java
++++ b/src/test/org/apache/commons/lang/enums/EnumUtilsTest.java
+@@ -27,7 +27,7 @@ import junit.framework.TestCase;
+ import junit.framework.TestSuite;
+ 
+ /**
+- * Test cases for the {@link Enum} class.
++ * Test cases for the {@link Enumeration} class.
+  *
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
+diff --git a/src/test/org/apache/commons/lang/enums/Extended1Enum.java b/src/test/org/apache/commons/lang/enums/Extended1Enum.java
+index e262fbd..a31530f 100644
+--- a/src/test/org/apache/commons/lang/enums/Extended1Enum.java
++++ b/src/test/org/apache/commons/lang/enums/Extended1Enum.java
+@@ -28,7 +28,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public class Extended1Enum extends Enum {
++public class Extended1Enum extends Enumeration {
+     public static final Extended1Enum ALPHA = new Extended1Enum("Alpha");
+     public static final Extended1Enum BETA = new Extended1Enum("Beta");
+ 
+diff --git a/src/test/org/apache/commons/lang/enums/Extended3Enum.java b/src/test/org/apache/commons/lang/enums/Extended3Enum.java
+index c2dad96..39cf701 100644
+--- a/src/test/org/apache/commons/lang/enums/Extended3Enum.java
++++ b/src/test/org/apache/commons/lang/enums/Extended3Enum.java
+@@ -36,19 +36,19 @@ public class Extended3Enum extends Extended2Enum {
+     }
+ 
+     public static Extended1Enum getEnum(String name) {
+-        return (Extended1Enum) Enum.getEnum(Extended3Enum.class, name);
++        return (Extended1Enum) Enumeration.getEnum(Extended3Enum.class, name);
+     }
+ 
+     public static Map getEnumMap() {
+-        return Enum.getEnumMap(Extended3Enum.class);
++        return Enumeration.getEnumMap(Extended3Enum.class);
+     }
+ 
+     public static List getEnumList() {
+-        return Enum.getEnumList(Extended3Enum.class);
++        return Enumeration.getEnumList(Extended3Enum.class);
+     }
+ 
+     public static Iterator iterator() {
+-        return Enum.iterator(Extended3Enum.class);
++        return Enumeration.iterator(Extended3Enum.class);
+     }
+ 
+ }
+diff --git a/src/test/org/apache/commons/lang/enums/Nest.java b/src/test/org/apache/commons/lang/enums/Nest.java
+index e546385..8ef4b61 100644
+--- a/src/test/org/apache/commons/lang/enums/Nest.java
++++ b/src/test/org/apache/commons/lang/enums/Nest.java
+@@ -35,7 +35,7 @@ public final class Nest {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+         public static final ColorEnum RED = new ColorEnum("Red");
+         public static final ColorEnum GREEN = new ColorEnum("Green");
+         public static final ColorEnum BLUE = new ColorEnum("Blue");
+diff --git a/src/test/org/apache/commons/lang/enums/NestBroken.java b/src/test/org/apache/commons/lang/enums/NestBroken.java
+index a7890df..8d1ab21 100644
+--- a/src/test/org/apache/commons/lang/enums/NestBroken.java
++++ b/src/test/org/apache/commons/lang/enums/NestBroken.java
+@@ -42,7 +42,7 @@ public final class NestBroken {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+ 
+         private ColorEnum(String color) {
+             super(color);
+diff --git a/src/test/org/apache/commons/lang/enums/NestLinked.java b/src/test/org/apache/commons/lang/enums/NestLinked.java
+index b586e2b..d0e6456 100644
+--- a/src/test/org/apache/commons/lang/enums/NestLinked.java
++++ b/src/test/org/apache/commons/lang/enums/NestLinked.java
+@@ -44,7 +44,7 @@ public final class NestLinked {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+ 
+         static {
+             // Explicitly reference the class where the enums are defined
+diff --git a/src/test/org/apache/commons/lang/enums/NestReferenced.java b/src/test/org/apache/commons/lang/enums/NestReferenced.java
+index 643d126..b136d33 100644
+--- a/src/test/org/apache/commons/lang/enums/NestReferenced.java
++++ b/src/test/org/apache/commons/lang/enums/NestReferenced.java
+@@ -40,7 +40,7 @@ public final class NestReferenced {
+         super();
+     }
+     
+-    public static final class ColorEnum extends Enum {
++    public static final class ColorEnum extends Enumeration {
+ 
+         // must be defined here, not just in outer class
+         private static final ColorEnum RED = new ColorEnum("Red");
+diff --git a/src/test/org/apache/commons/lang/enums/OperationEnum.java b/src/test/org/apache/commons/lang/enums/OperationEnum.java
+index 67719ac..4aa284d 100644
+--- a/src/test/org/apache/commons/lang/enums/OperationEnum.java
++++ b/src/test/org/apache/commons/lang/enums/OperationEnum.java
+@@ -26,7 +26,7 @@ import java.util.Map;
+  * @author Stephen Colebourne
+  * @version $Id$
+  */
+-public abstract class OperationEnum extends Enum {
++public abstract class OperationEnum extends Enumeration {
+     // This syntax works for JDK 1.3 and upwards:
+ //    public static final OperationEnum PLUS = new OperationEnum("Plus") {
+ //        public int eval(int a, int b) {
+diff --git a/src/test/org/apache/commons/lang/enums/ValuedEnumTest.java b/src/test/org/apache/commons/lang/enums/ValuedEnumTest.java
+index 3f97013..76a12f5 100644
+--- a/src/test/org/apache/commons/lang/enums/ValuedEnumTest.java
++++ b/src/test/org/apache/commons/lang/enums/ValuedEnumTest.java
+@@ -27,7 +27,7 @@ import junit.framework.TestSuite;
+ import org.apache.commons.lang.SerializationUtils;
+ 
+ /**
+- * Test cases for the {@link Enum} class.
++ * Test cases for the {@link Enumeration} class.
+  *
+  * @author <a href="mailto:scolebourne@joda.org">Stephen Colebourne</a>
+  * @version $Id$
