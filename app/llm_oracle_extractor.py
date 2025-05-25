@@ -47,6 +47,7 @@ def extract_oracle(spectra):
     method_code = chosen["method_code"]
     m_start = chosen["m_start"]
     m_end = chosen["m_end"]
+    target_file = chosen["file"]
 
     #### Generate oracle ####
     emitter.normal("Generating oracle")
@@ -68,17 +69,20 @@ def extract_oracle(spectra):
         f.write(new_code_text)
 
     # Replace the original source file with the newly instrumented source
-    with open(values.dir_output / "instr.java", "w", encoding="utf-8") as f:
+    with open(target_file, "w", encoding="utf-8") as f:
         f.write(new_code_text)
 
     return None
 
 # Collects failing tests and extracts their source
 def extract_failing_test_source(spectra):
+    # Collect failing tests
     failing_tests = [t for t, r in spectra.test_results.items() if r == "FAIL"]
     failing_tests_info = []
     test_dir = values.dir_exp + "/" + values.dir_test_src
     emitter.normal(f"Looking for test source in {test_dir}")
+
+    # Extract source code for every failing test
     for test in failing_tests:
         try:
             class_name, method_name = test.split('#')
@@ -184,6 +188,7 @@ def select_location(spectra, bug_report, tests_context):
             "m_start": m_start,
             "m_end": m_end,
             "signature": signature,
+            "file": target_file
         })
 
     #### Select Candidate ####
