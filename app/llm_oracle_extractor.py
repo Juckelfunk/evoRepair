@@ -238,23 +238,23 @@ def select_location(spectra, bug_report, tests_context):
 # Creates a prompt and sends it to llm_integration
 def generate_oracle(method_code, java_doc, bug_report, tests_context):
     prompt = f"""
-    ### Instructions  
-    1. Produce exactly one Java wrapper method.  
-    2. Name it **exactly** like the original (no `method_original` rename).  
-    3. Call the old code via `method_original(…)`.  
-    4. Insert your **boolean condition** and any **extra logic** (inside or outside the `if`) to detect the bug, then throw `RuntimeException("[Defects4J_BugReport_Violation]")`.  
-    5. Return **only** a java block—no prose, no comments, no imports.  
+    ### Instructions
+    1. Produce a test oracle which throws a `RuntimeException("[Defects4J_BugReport_Violation]")` when the conditions derived from the bug report below are met.
+    2. Produce exactly one Java wrapper method and nothing else inside a single ```java fenced block. There must be no text before or after the fence. No prose, no comments, no imports.
+    3. Do **NOT** change the wrapper's method name. Call the original logic via `method_original(...)`.
+    4. Replace <condition_for_buggy_behavior> in the template. Insert your **boolean condition** and any **extra logic** (inside or outside the `if`) to detect the bug, then throw `RuntimeException("[Defects4J_BugReport_Violation]")`.
+    5. Your code **must compile** with Java 8.
 
     ---
 
     ### Oracle template  
     ```java
     {llm_prompt_template}
-    ````
+    ```
 
     ---
 
-    ### Example 1 (bug → wrapper)
+    ### Example 1 (bug --> wrapper)
 
     **Bug report:**
     *{prompt_example_1_bug_report}*
@@ -267,7 +267,7 @@ def generate_oracle(method_code, java_doc, bug_report, tests_context):
 
     ---
 
-    ### Example 2 (bug → wrapper)
+    ### Example 2 (bug --> wrapper)
 
     **Bug report:**
     *{prompt_example_2_bug_report}*
@@ -288,11 +288,9 @@ def generate_oracle(method_code, java_doc, bug_report, tests_context):
     **Failing Test(s)**
     {tests_context}
 
-    **Method to instrument (with javadoc):**
+    **Method to instrument:**
     {java_doc}
     {method_code}
-
-    Replace `<condition_for_buggy_behavior>` and add any surrounding logic needed, then output **one** fenced `java block` containing only your wrapper method.
     """
 
     oracle_code = llm_integration.call_llm(prompt, values.llm_generation_override).strip()
