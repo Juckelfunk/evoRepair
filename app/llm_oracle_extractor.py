@@ -364,9 +364,9 @@ def inject_oracle(code_lines, oracle_code, method_name, method_code, m_start, m_
     original_method_code = rename_method_in_text(method_code, method_name)
 
     injection_block = (
-        "\n\n################\n# ORACLE\n################\n\n" +
+        "\n\n////////////////\n/ ORACLE\n////////////////\n\n" +
         oracle_code +
-        "\n\n################\n# ORIGINAL METHOD\n################\n\n" +
+        "\n\n////////////////\n/ ORIGINAL METHOD\n////////////////\n\n" +
         original_method_code.strip() +
         "\n\n"
     )
