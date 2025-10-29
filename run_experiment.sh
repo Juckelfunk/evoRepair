@@ -44,67 +44,6 @@ files=(
 
 for f in "${files[@]}"; do
   echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation phi4_docker --llm-selection phi4_docker --random-seed 100 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
+  python3 ./Repair.py --oracle-extraction --llm-generation 2_5_pro --llm-selection 2_5_pro --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
   pkill -9 -f java
 done
-mv output Base/Phi121
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation phi4_docker --llm-selection phi4_docker --random-seed 200 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Phi122
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation phi4_docker --llm-selection phi4_docker --random-seed 300 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Phi123
-
-
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation 2_0_flash --llm-selection 2_0_flash --random-seed 100 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Flash121
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation 2_0_flash --llm-selection 2_0_flash --random-seed 200 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Flash122
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation 2_0_flash --llm-selection 2_0_flash --random-seed 300 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Flash123
-
-
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation 1_5_pro --llm-selection 1_5_pro --random-seed 100 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Pro121
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation 1_5_pro --llm-selection 1_5_pro --random-seed 200 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Pro122
-
-for f in "${files[@]}"; do
-  echo "Running subject: $f"
-  python3 ./Repair.py --oracle-extraction --llm-generation 1_5_pro --llm-selection 1_5_pro --random-seed 300 --config "d4j-subjects_no_instr/${f}_no_instr/config.json"
-  pkill -9 -f java
-done
-mv output Base/Pro123
