@@ -316,7 +316,9 @@ def run(arg_list):
         llm_oracle_extractor.extract_oracle(spectra)
         timer.pause_phase(phase)
         emitter.normal(f"\n\t\tUsed {timer.last_interval_duration(phase, unit='m'):.2f} minutes")
-        # return
+
+        timer.pause_all()
+        return
 
     # Run oracle location finder
     oracle_extractor.extract_oracle_locations()

@@ -173,10 +173,16 @@ def select_location(spectra, bug_report, tests_context):
                 sig_lines.append(line.split('{')[0].strip())
                 break
             sig_lines.append(line.strip())
-        signature = " ".join(sig_lines).strip()
+        signature = re.sub(r"\s+", " ", " ".join(sig_lines)).strip() # Remove {
 
         # Debug: output full extracted method
         emitter.information(f"Candidate {i + 1} signature: {signature}")
+
+        # Normalize signature
+        cand_norm = re.sub(r'/\*[\s\S]*?\*/', '', signature)     # remove Javadoc / block comments entirely
+        cand_norm = re.sub(r"\s+", " ", cand_norm.strip())       # collapse all runs of whitespace to single spaces
+        cand_norm = re.split(r'\)\s*', cand_norm, 1)[0] + ')'    # keep text only up to and incl. the first ')'
+        cand_norm = cand_norm.lower()                            # compare case-insensitively
 
         candidates.append({
             "index": len(candidates) + 1,
@@ -188,6 +194,7 @@ def select_location(spectra, bug_report, tests_context):
             "m_start": m_start,
             "m_end": m_end,
             "signature": signature,
+            "norm_signature": cand_norm,
             "file": target_file
         })
 
@@ -207,7 +214,6 @@ def select_location(spectra, bug_report, tests_context):
         f"method signature from the candidate list that needs to be instrumented or modified to fix the bug.\n\n"
         f"Bug Report:\n------\n{bug_report}\n------\n\n"
         f"Failing Tests:\n------\n{tests_context}\n------\n\n"
-        # f"Top {len(locations)} Suspicious Locations:\n------\n{suspicious_locations_context}\n------\n\n"
         f"Candidate Methods:\n------\n"
         f"{''.join(method_selection)}"
         f"------\n\n"
@@ -217,16 +223,24 @@ def select_location(spectra, bug_report, tests_context):
 
     chosen = None
     for attempt in range(1, values.llm_selection_retries + 1):
-        selected_signature = llm_integration.call_llm(selection_prompt, values.llm_selection_override).strip()
-        selected_signature = clean_response(selected_signature)
-        selected_signature = re.sub(r"\s*\{\s*$", "", selected_signature).strip() # Remove {
+        selected = llm_integration.call_llm(selection_prompt, values.llm_selection_override)
+        selected = clean_response(selected).strip()
+        selected = re.sub(r'\s*\{\s*$', '', selected) # Remove {
 
-        chosen = next((c for c in candidates if c["signature"] == selected_signature), None)
-        if not chosen:
-            emitter.warning(f"Selected signature not matched on attempt {attempt}: {selected_signature}")
-            continue
-        else:
-            emitter.information(f"Selected signature: {selected_signature}")
+        # Normalize selected signature
+        sel_norm = re.sub(r'/\*[\s\S]*?\*/', '', selected)       # remove any Javadoc / block comments in LLM reply
+        sel_norm = re.sub(r"\s+", " ", sel_norm.strip())         # collapse whitespace
+        sel_norm = re.split(r'\)\s*', sel_norm, 1)[0] + ')'      # keep text up to first ')'
+        sel_norm = sel_norm.lower()                              # lowercase for comparison
+
+        chosen = next((c for c in candidates
+             if c["norm_signature"] == sel_norm
+             or c["signature"].lower().startswith(sel_norm)
+             or sel_norm.startswith(c["norm_signature"])),
+            None
+        )
+        if chosen:
+            emitter.information(f"Selected method:\n{chosen['method_code']}")
             break
 
     if not chosen:
@@ -364,9 +378,9 @@ def inject_oracle(code_lines, oracle_code, method_name, method_code, m_start, m_
     original_method_code = rename_method_in_text(method_code, method_name)
 
     injection_block = (
-        "\n\n////////////////\n/ ORACLE\n////////////////\n\n" +
+        "\n\n////////////////\n// ORACLE\n////////////////\n\n" +
         oracle_code +
-        "\n\n////////////////\n/ ORIGINAL METHOD\n////////////////\n\n" +
+        "\n\n////////////////\n// ORIGINAL METHOD\n////////////////\n\n" +
         original_method_code.strip() +
         "\n\n"
     )
